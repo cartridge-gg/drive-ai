@@ -41,8 +41,9 @@ const TURN_STEP: felt252 = 3219563738742341801;
 const HALF_PI: felt252 = 28976077338029890953;
 
 fn rotate(a: Vec2, sin_theta: Fixed, cos_theta: Fixed) -> Vec2 {
-    let new_x = a.x * cos_theta - a.y * sin_theta;
-    let new_y = a.x * sin_theta + a.y * cos_theta;
+    // clockwise rotation is positive here
+    let new_x = a.x * cos_theta + a.y * sin_theta;
+    let new_y = -a.x * sin_theta + a.y * cos_theta;
     return Vec2Trait::new(new_x, new_y);
 }
 
@@ -118,7 +119,7 @@ mod tests {
     const TEN: felt252 = 184467440737095516160;
     const TWENTY: felt252 = 368934881474191032320;
     const FORTY: felt252 = 737869762948382064640;
-    const DEG_30_IN_RADS: felt252 = 9658715196994321226;
+    const DEG_NEG_30_IN_RADS: felt252 = -9658715196994321226;
 
     #[test]
     #[available_gas(2000000)]
@@ -200,18 +201,20 @@ mod tests {
             position: Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TWENTY)),
             width: FixedTrait::from_felt(TEN),
             length: FixedTrait::from_felt(TWENTY),
-            steer: FixedTrait::from_felt(DEG_30_IN_RADS),
+            steer: FixedTrait::from_felt(DEG_NEG_30_IN_RADS),
             speed: FixedTrait::from_felt(TEN)
         };
 
         vertices = vehicle.vertices();
 
+        // x: ~8.66025403784439, y: ~42.32050807568880
         assert_precise(
             *(vertices.at(0).x), 159753090305067335160, 'invalid rotated vertex_0', Option::None(())
         );
         assert_precise(
             *(vertices.at(0).y), 780673828410437532220, 'invalid rotated vertex_0', Option::None(())
         );
+        // x: ~-8.66025403784439, y: ~32.32050807568880        
         assert_precise(
             *(vertices.at(1).x),
             -159752327071118592360,
@@ -221,12 +224,14 @@ mod tests {
         assert_precise(
             *(vertices.at(1).y), 596206769290316387460, 'invalid rotated vertex_1', Option::None(())
         );
+        // x: ~11.33974596215560, y: ~-2.32050807568877
         assert_precise(
             *(vertices.at(2).x), 209181791169123697160, 'invalid rotated vertex_2', Option::None(())
         );
         assert_precise(
             *(vertices.at(2).y), -42804065462055467580, 'invalid rotated vertex_2', Option::None(())
         );
+        // x: ~28.66025403784440, y: ~7.67949192431123
         assert_precise(
             *(vertices.at(3).x), 528687208545309624680, 'invalid rotated vertex_3', Option::None(())
         );
