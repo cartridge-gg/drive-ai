@@ -138,12 +138,18 @@ mod tests {
         let theta = FixedTrait::new(trig::HALF_PI_u128 / 3, false);
         let sin_theta = trig::sin_fast(theta);
         let cos_theta = trig::cos_fast(theta);
-
         let b = rotate(a, sin_theta, cos_theta);
-
         // x: ~1.8660254, y: ~1.2320508
         assert_precise(b.x, 34421948996604255568, 'invalid rotate x', Option::None(()));
         assert_precise(b.y, 22727230956451402011, 'invalid rotate y', Option::None(()));
+
+        let minus_theta = FixedTrait::new(trig::HALF_PI_u128 / 3, true);
+        let sin_minus_theta = trig::sin_fast(minus_theta);
+        let cos_minus_theta = trig::cos_fast(minus_theta);
+        let c = rotate(a, sin_minus_theta, cos_minus_theta);
+        // x: ~-0.1339746, y: ~2.2320508
+        assert_precise(c.x, -2471384632801431732, 'invalid rotate x', Option::None(()));
+        assert_precise(c.y, 41173897771154245661, 'invalid rotate y', Option::None(()));
     }
 
     #[test]
