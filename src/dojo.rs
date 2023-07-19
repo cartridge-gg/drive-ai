@@ -351,13 +351,16 @@ where
 // }
 
 fn fixed_to_f32(num: FieldElement) -> f32 {
-    let FIXED_SIZE = FieldElement::from_dec_str("42535295865117307932921825928971026432").unwrap();
-    let ONE = FieldElement::from_dec_str("2305843009213693952").unwrap();
+    let ONE = FieldElement::from_dec_str("18446744073709551616").unwrap();
     let PRIME = FieldElement::from_dec_str(
-        "3618502788666131213697322783095070105623107215331596699973092056135872020481",
+        "3618502788666131213697322783095070105623107215331596699973092056135872020480",
     )
     .unwrap();
-    let PRIME_HALF = PRIME.floor_div(FieldElement::from_dec_str("2").unwrap());
+
+    let PRIME_HALF = FieldElement::from_dec_str(
+        "1809251394333065606848661391547535052811553607665798349986546028067936010240",
+    )
+    .unwrap();
 
     let res = if num > PRIME_HALF { num - PRIME } else { num };
 
