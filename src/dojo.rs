@@ -342,13 +342,38 @@ where
     .await
 }
 
-fn fixed_to_f32(val: FieldElement) -> f32 {
-    BigUint::from_str(&val.to_string())
-        .unwrap()
-        .div(BigUint::from_i8(2).unwrap().pow(64))
-        .to_f32()
-        .unwrap()
+// fn fixed_to_f32(val: FieldElement) -> f32 {
+//     BigUint::from_str(&val.to_string())
+//         .unwrap()
+//         .div(BigUint::from_i8(2).unwrap().pow(64))
+//         .to_f32()
+//         .unwrap()
+// }
+
+fn fixed_to_f32(num: FieldElement) -> f32 {
+    let FIXED_SIZE = FieldElement::from_dec_str("42535295865117307932921825928971026432").unwrap();
+    let ONE = FieldElement::from_dec_str("2305843009213693952").unwrap();
+    let PRIME = FieldElement::from_dec_str(
+        "3618502788666131213697322783095070105623107215331596699973092056135872020481",
+    )
+    .unwrap();
+    let PRIME_HALF = PRIME.floor_div(FieldElement::from_dec_str("2").unwrap());
+
+    let res = if num > PRIME_HALF { num - PRIME } else { num };
+
+    let int = res.floor_div(ONE);
+    let frac = (res % ONE).floor_div(ONE);
+    let value = (int + frac).to_string();
+    value.parse::<f32>().unwrap()
 }
+
+// export const fromFixed = (num: string) => {
+//     let res = BigInt(num);
+//     res = res > PRIME_HALF ? res - PRIME : res;
+//     const int = Number(res / ONE);
+//     const frac = Number(res % ONE) / Number(ONE);
+//     return int + frac;
+// }
 
 fn to_bevy_coordinate(dojo_x: FieldElement, dojo_y: FieldElement) -> (f32, f32) {
     let dojo_x = fixed_to_f32(dojo_x);
