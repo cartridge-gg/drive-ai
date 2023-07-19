@@ -12,7 +12,9 @@ pub const WINDOW_HEIGHT: f32 = 1000.0;
 
 pub const ROAD_X_MIN: f32 = 238.0; // TODO: compute with SPRITE_SCALE_FACTOR
 pub const ROAD_X_MAX: f32 = 718.0;
+// TODO: subtract starting line (window / 2)
 pub const ROAD_W: f32 = ROAD_X_MAX - ROAD_X_MIN;
+// TODO: subtract goal position ()
 pub const ROAD_H: f32 = WINDOW_HEIGHT * NUM_ROAD_TILES as f32;
 pub const DOJO_TO_BEVY_RATIO_X: f32 = ROAD_W / DOJO_GRID_WIDTH;
 pub const DOJO_TO_BEVY_RATIO_Y: f32 = ROAD_H / DOJO_GRID_HEIGHT;
@@ -50,3 +52,4 @@ pub const WORLD_ADDRESS: &str = "0x26065106fa319c3981618e7567480a50132f23932226a
 pub const DOJO_SYNC_INTERVAL: f32 = 0.1;
 pub const DOJO_GRID_WIDTH: f32 = 400.0;
 pub const DOJO_GRID_HEIGHT: f32 = 1000.0;
+pub const DOJO_ENEMIES_NB: u32 = 10;

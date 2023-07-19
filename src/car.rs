@@ -13,9 +13,7 @@ use crate::*;
 pub struct CarPlugin;
 
 #[derive(Component)]
-pub struct Car {
-    pub dojo_id: FieldElement,
-}
+pub struct Car;
 
 #[derive(Component)]
 pub struct Model {
@@ -262,17 +260,18 @@ fn setup(mut ray_cast_sensors: ResMut<RayCastSensors>) {
 // }
 
 impl CarBundle {
-    pub fn new(asset_server: &AssetServer, dojo_id: FieldElement) -> Self {
+    pub fn new(asset_server: &AssetServer, model_id: FieldElement) -> Self {
         // let mut rng = rand::thread_rng();
         // let rand_x = rng.gen_range(800.0..1100.0);
 
         Self {
             sprite_bundle: SpriteBundle {
-                transform: Transform::from_xyz(WINDOW_WIDTH / 2.00, WINDOW_HEIGHT / 2.0, 0.0),
+                // TODO: make cordinate dynamic
+                transform: Transform::from_xyz(298.0, 0.0, 0.0).with_scale(vec3(2.5, 2.5, 1.0)),
                 texture: asset_server.load("agent.png"),
                 ..default()
             },
-            car: Car { dojo_id },
+            car: Car,
             fitness: Fitness(0.0),
             model: Model {
                 nn: Net::new(vec![
@@ -304,9 +303,9 @@ impl CarBundle {
 
     pub fn with_model(asset_server: &AssetServer, model: &Net) -> Self {
         // TODO: generate dojo id
-        let dojo_id = FieldElement::from_dec_str("0").unwrap();
+        let mode_id = FieldElement::from_dec_str("0").unwrap();
 
-        let mut car = CarBundle::new(asset_server, dojo_id);
+        let mut car = CarBundle::new(asset_server, mode_id);
         car.model.nn = model.clone();
         car
     }

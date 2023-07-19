@@ -2,12 +2,14 @@ use bevy::{math::vec3, prelude::*};
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_rapier2d::prelude::{NoUserData, RapierConfiguration, RapierPhysicsPlugin};
-use steering::*;
 use steering::{
     car::{Car, CarPlugin},
+    configs::*,
     dojo::DojoPlugin,
-    gui::GuiPlugin,
+    enemy::EnemyPlugin,
+    // gui::GuiPlugin,
     population::PopulationPlugin,
+    resources::MaxDistanceTravelled,
 };
 
 fn main() {
@@ -34,7 +36,7 @@ fn main() {
         // .add_plugin(LogDiagnosticsPlugin::default())
         // .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(CarPlugin)
-        // .add_plugin(EnemyPlugin)
+        .add_plugin(EnemyPlugin)
         .add_plugin(PopulationPlugin)
         // .add_plugin(GuiPlugin)
         .add_plugin(DojoPlugin)
@@ -44,7 +46,7 @@ fn main() {
         // .insert_resource(Msaa::Off)
         .add_startup_system(setup)
         .add_system(bevy::window::close_on_esc)
-        .add_system(camera_follow_system)
+        // .add_system(camera_follow_system)
         // .add_system(settings_system)
         .run();
 }
