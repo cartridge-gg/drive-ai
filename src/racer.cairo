@@ -41,10 +41,12 @@ const CAR_HEIGHT: u128 = 590295810358705651712; // 32
 const CAR_WIDTH: u128 = 295147905179352825856; // 16
 
 fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
+    // All sensors (ray segments) for this vehicle
     let ray_segments = RaysTrait::new(vehicle.position, vehicle.steer).segments;
 
     let filter_dist = FixedTrait::new(CAR_WIDTH + RAY_LENGTH, false); // Is this used?
 
+    // Distances of each sensor to wall, if wall is near
     let mut wall_sensors = match near_wall(vehicle) {
         Wall::None(()) => {
             ArrayTrait::<Fixed>::new()
@@ -57,9 +59,11 @@ fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
         },
     };
 
+    // Positions of only filtered (near) enemies
     let filtered_enemies = filter_positions(vehicle, enemies);
 
-    // Iterate over all enemeies for each sensor and find the closest one
+    // Distances of each sensor to its closest intersecting edge of all filtered enemies
+    // (If sensor does not intersect an enemy edge, sensor's distance = 0)
     let mut enemy_sensors = ArrayTrait::<Fixed>::new();
     let mut ray_idx = 0;
     loop {
@@ -144,12 +148,18 @@ fn filter_positions(vehicle: Vehicle, mut positions: Array<Position>) -> Array<P
     near
 }
 
+// Returns distances of sensor (ray) to closest intersecting edge of all filtered enemies
+// (If sensor does not intersect an enemy edge, sensor's distance = 0)
 fn closest_position(ray: @Ray, mut positions: Span<Position>) -> Fixed {
-    let mut closest = FixedTrait::new(0, false); // Should this be non-zero?
+    // Return value if sensor does not intersect any edges
+    let mut closest = FixedTrait::new(0, false);
+    // Max possible intersection distance
+    let ray_length = FixedTrait::new(RAY_LENGTH);
 
     loop {
         match positions.pop_front() {
             Option::Some(position) => {
+                closest = ray_length;
                 let mut edge_idx: usize = 0;
 
                 let vertices = position.vertices();
@@ -157,6 +167,9 @@ fn closest_position(ray: @Ray, mut positions: Span<Position>) -> Fixed {
                 // TODO: Only check visible edges
                 loop {
                     if edge_idx == 3 {
+                        if closest == ray_length { // No intersection
+                            closest == FixedTrait::new(0, false);
+                        }
                         break ();
                     }
 
