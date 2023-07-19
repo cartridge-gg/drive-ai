@@ -111,7 +111,7 @@ mod spawn_enemies {
             // Resize the value so it fits in the grid height.
             let (_, y_rem) = u256_safe_divmod(base_value.into(), big_grid_height);
             // Spawn the enemy.
-            set !(
+            set!(
                 ctx.world,
                 (model, i).into(),
                 (Position {
@@ -227,9 +227,9 @@ mod move_enemies {
                 break ();
             }
             let key = (model, i).into();
-            let position = get !(ctx.world, key, Position);
+            let position = get!(ctx.world, key, Position);
             let position = move(position, CAR_HEIGHT, CAR_VELOCITY, i.into());
-            set !(ctx.world, key, (Position { x: position.x, y: position.y }));
+            set!(ctx.world, key, (Position { x: position.x, y: position.y }));
             i += 1;
         }
     }
@@ -273,9 +273,9 @@ mod move_enemies {
         let base_value = felt252_div(x.into(), grid_width);
         let (_, x_rem) = u256_safe_divmod(base_value.into(), u256_as_non_zero(x_range.into()));
         let new_y = if y <= velocity + height {
-            GRID_HEIGHT - (velocity - y) + height
+            GRID_HEIGHT + y + height - velocity
         } else {
-            y - velocity
+            y - (velocity + height)
         };
 
         Position {
