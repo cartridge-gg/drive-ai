@@ -77,7 +77,7 @@ impl Plugin for DojoPlugin {
             .add_startup_systems((
                 setup,
                 spawn_racers_thread,
-                // drive_thread,
+                drive_thread,
                 update_vehicle_thread,
                 update_enemies_thread,
             ))
@@ -105,7 +105,7 @@ impl DojoSyncTime {
 fn sync_dojo_state(
     mut dojo_sync_time: Query<&mut DojoSyncTime>,
     time: Res<Time>,
-    // drive: Res<DriveCommand>,
+    drive: Res<DriveCommand>,
     update_vehicle: Res<UpdateVehicleCommand>,
     update_enemies: Res<UpdateEnemiesCommand>,
 ) {
@@ -117,9 +117,9 @@ fn sync_dojo_state(
         if let Err(e) = update_vehicle.try_send() {
             log::error!("{e}");
         }
-        // if let Err(e) = drive.try_send() {
-        //     log::error!("{e}");
-        // }
+        if let Err(e) = drive.try_send() {
+            log::error!("{e}");
+        }
         if let Err(e) = update_enemies.try_send() {
             log::error!("{e}");
         }
@@ -145,7 +145,7 @@ fn spawn_racers_thread(
         let spawn_racer_system = world.system("spawn_racer", block_id).await.unwrap();
 
         while let Some(_) = rx.recv().await {
-            let model_id: FieldElement = cairo_short_string_to_felt("model").unwrap();
+            let model_id = cairo_short_string_to_felt(configs::MODEL_NAME).unwrap();
 
             match spawn_racer_system
                 .execute(vec![
@@ -201,32 +201,36 @@ fn spawn_racers_thread(
     });
 }
 
-// fn drive_thread(
-//     env: Res<DojoEnv>,
-//     model: Res<Model>,
-//     runtime: ResMut<TokioTasksRuntime>,
-//     mut commands: Commands,
-// ) {
-//     let (tx, mut rx) = mpsc::channel::<()>(8);
-//     commands.insert_resource(DriveCommand(tx));
+fn drive_thread(env: Res<DojoEnv>, runtime: ResMut<TokioTasksRuntime>, mut commands: Commands) {
+    let (tx, mut rx) = mpsc::channel::<()>(8);
+    commands.insert_resource(DriveCommand(tx));
 
-//     let account = env.account.clone();
-//     let world_address = env.world_address;
-//     let block_id = env.block_id;
-//     let model_id = model.id;
+    let account = env.account.clone();
+    let world_address = env.world_address;
+    let block_id = env.block_id;
 
-//     runtime.spawn_background_task(move |_| async move {
-//         let world = WorldContract::new(world_address, account.as_ref());
+    runtime.spawn_background_task(move |mut ctx| async move {
+        let world = WorldContract::new(world_address, account.as_ref());
 
-//         let drive_system = world.system("drive", block_id).await.unwrap();
+        let drive_system = world.system("drive", block_id).await.unwrap();
 
-//         while let Some(_) = rx.recv().await {
-//             if let Err(e) = drive_system.execute(vec![model_id]).await {
-//                 log::error!("Run drive system: {e}");
-//             }
-//         }
-//     });
-// }
+        while let Some(_) = rx.recv().await {
+            let model_id = ctx
+                .run_on_main_thread(move |ctx| {
+                    let mut state: SystemState<Query<&Model, With<Car>>> =
+                        SystemState::new(ctx.world);
+                    let query = state.get(ctx.world);
+
+                    query.single().id
+                })
+                .await;
+
+            if let Err(e) = drive_system.execute(vec![model_id]).await {
+                log::error!("Run drive system: {e}");
+            }
+        }
+    });
+}
 
 fn update_vehicle_thread(
     env: Res<DojoEnv>,
@@ -368,15 +372,15 @@ impl SpawnRacersCommand {
     }
 }
 
-// #[derive(Resource)]
-// struct DriveCommand(mpsc::Sender<()>);
+#[derive(Resource)]
+struct DriveCommand(mpsc::Sender<()>);
 
-// // TODO: derive macro?
-// impl DriveCommand {
-//     fn try_send(&self) -> Result<(), mpsc::error::TrySendError<()>> {
-//         self.0.try_send(())
-//     }
-// }
+// TODO: derive macro?
+impl DriveCommand {
+    fn try_send(&self) -> Result<(), mpsc::error::TrySendError<()>> {
+        self.0.try_send(())
+    }
+}
 
 #[derive(Resource)]
 struct UpdateVehicleCommand(mpsc::Sender<()>);
