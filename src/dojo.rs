@@ -145,7 +145,7 @@ fn spawn_racers_thread(
         let spawn_racer_system = world.system("spawn_racer", block_id).await.unwrap();
 
         while let Some(_) = rx.recv().await {
-            let model_id: FieldElement = 0_u8.into();
+            let model_id: FieldElement = cairo_short_string_to_felt("model").unwrap();
 
             match spawn_racer_system
                 .execute(vec![
