@@ -4,7 +4,7 @@ use cubit::types::fixed::{Fixed, FixedTrait, FixedPrint};
 use cubit::math::{trig, comp::{min, max}, core::{pow_int, sqrt}};
 
 fn rotate(a: Vec2, sin_theta: Fixed, cos_theta: Fixed) -> Vec2 {
-    // clockwise rotation is positive here
+    // Clockwise rotation is positive here
     let new_x = a.x * cos_theta + a.y * sin_theta;
     let new_y = -a.x * sin_theta + a.y * cos_theta;
     return Vec2Trait::new(new_x, new_y);

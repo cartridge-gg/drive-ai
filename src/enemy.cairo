@@ -25,7 +25,7 @@ struct Position {
 }
 
 trait PositionTrait {
-    /// Returns the vertices of the vehicle.
+    // Returns the vertices of the enemy at given position
     fn vertices(self: @Position) -> Span<Vec2>;
 }
 
