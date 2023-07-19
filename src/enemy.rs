@@ -1,8 +1,4 @@
-use bevy::{
-    math::{vec2, vec3},
-    prelude::*,
-};
-use bevy_rapier2d::prelude::*;
+use bevy::prelude::*;
 use rand::{thread_rng, Rng};
 use starknet::core::types::FieldElement;
 
@@ -25,16 +21,16 @@ pub enum EnemyType {
     Truck,
 }
 
-#[derive(Component)]
-pub struct BoundControlTruck;
+// #[derive(Component)]
+// pub struct BoundControlTruck;
 
-impl Plugin for EnemyPlugin {
-    fn build(&self, app: &mut App) {
-        // app.add_startup_system(setup)
-        //     .add_system(update_enemies)
-        //     .add_system(bound_control_system);
-    }
-}
+// impl Plugin for EnemyPlugin {
+//     fn build(&self, app: &mut App) {
+//         app.add_startup_system(setup)
+//             .add_system(update_enemies)
+//             .add_system(bound_control_system);
+//     }
+// }
 
 // fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 //     spawn_enemies(&mut commands, &asset_server);

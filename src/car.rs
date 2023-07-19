@@ -1,14 +1,9 @@
-use std::f32::consts::PI;
-
-use bevy::{log, math::vec3, prelude::*};
-use bevy_prototype_debug_lines::DebugLinesPlugin;
-use bevy_rapier2d::prelude::*;
-// use rand::Rng;
-use starknet::core::types::FieldElement;
-
 use crate::dojo::SpawnRacersCommand;
 use crate::nn::Net;
 use crate::*;
+use bevy::{log, math::vec3, prelude::*};
+use bevy_prototype_debug_lines::DebugLinesPlugin;
+use starknet::core::types::FieldElement;
 
 pub struct CarPlugin;
 
@@ -19,27 +14,27 @@ pub struct Car;
 pub struct Model {
     pub nn: Net,
     pub nn_outputs: Vec<Vec<f64>>,
-
-    ray_inputs: Vec<f64>,
+    // ray_inputs: Vec<f64>,
+    pub id: FieldElement,
 }
 
-#[derive(Component, Reflect)]
-struct TurnSpeed(f32);
+// #[derive(Component, Reflect)]
+// struct TurnSpeed(f32);
 
-#[derive(Component, Reflect)]
-struct Steer(f32);
+// #[derive(Component, Reflect)]
+// struct Steer(f32);
 
-#[derive(Component, Reflect)]
-struct Speed(f32);
+// #[derive(Component, Reflect)]
+// struct Speed(f32);
 
 #[derive(Component)]
 pub struct Fitness(pub f32);
 
-#[derive(Resource, Default)]
-struct RayCastSensors(Vec<(f32, f32)>);
+// #[derive(Resource, Default)]
+// struct RayCastSensors(Vec<(f32, f32)>);
 
 // wasd controls
-struct CarControls(bool, bool, bool, bool);
+// struct CarControls(bool, bool, bool, bool);
 
 #[derive(Bundle)]
 pub struct CarBundle {
@@ -49,24 +44,24 @@ pub struct CarBundle {
     model: Model,
     // speed: Speed,
     // velocity: Velocity,
-    mass: ColliderMassProperties,
-    rigid_body: RigidBody,
-    collider: Collider,
-    events: ActiveEvents,
-    damping: Damping,
-    sleep: Sleeping,
-    ccd: Ccd,
-    collision_groups: CollisionGroups,
+    // mass: ColliderMassProperties,
+    // rigid_body: RigidBody,
+    // collider: Collider,
+    // events: ActiveEvents,
+    // damping: Damping,
+    // sleep: Sleeping,
+    // ccd: Ccd,
+    // collision_groups: CollisionGroups,
 }
 
 impl Plugin for CarPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(DebugLinesPlugin::default())
             .add_event::<SpawnCars>()
-            .register_type::<TurnSpeed>()
-            .register_type::<Speed>()
-            .insert_resource(RayCastSensors::default())
-            .add_startup_system(setup)
+            // .register_type::<TurnSpeed>()
+            // .register_type::<Speed>()
+            // .insert_resource(RayCastSensors::default())
+            // .add_startup_system(setup)
             .add_system(spawn_cars);
         // .add_systems((car_render_system, spawn_cars));
         // .add_system(collision_events_system)
@@ -101,19 +96,19 @@ fn spawn_cars(mut events: EventReader<SpawnCars>, sender: Res<SpawnRacersCommand
 //     transform.rotate_z(rotation_factor * 5.0 * time_step);
 // }
 
-fn setup(mut ray_cast_sensors: ResMut<RayCastSensors>) {
-    // Pre compute the raycast directions
-    let angle_per_ray = RAYCAST_SPREAD_ANGLE_DEG / (NUM_RAY_CASTS as f32) + 1.0;
-    let mut current_angle = RAYCAST_START_ANGLE_DEG;
-    for _ in 0..NUM_RAY_CASTS {
-        let angle = current_angle * (PI / 180.0);
-        let x = angle.cos();
-        let y = angle.sin();
-        ray_cast_sensors.0.push((x, y));
+// fn setup(mut ray_cast_sensors: ResMut<RayCastSensors>) {
+//     // Pre compute the raycast directions
+//     let angle_per_ray = RAYCAST_SPREAD_ANGLE_DEG / (NUM_RAY_CASTS as f32) + 1.0;
+//     let mut current_angle = RAYCAST_START_ANGLE_DEG;
+//     for _ in 0..NUM_RAY_CASTS {
+//         let angle = current_angle * (PI / 180.0);
+//         let x = angle.cos();
+//         let y = angle.sin();
+//         ray_cast_sensors.0.push((x, y));
 
-        current_angle += angle_per_ray;
-    }
-}
+//         current_angle += angle_per_ray;
+//     }
+// }
 
 // fn collision_events_system(
 //     mut commands: Commands,
@@ -279,25 +274,26 @@ impl CarBundle {
                     NUM_HIDDEN_NODES,
                     NUM_OUPUT_NODES,
                 ]),
-                ray_inputs: Vec::new(),
+                // ray_inputs: Vec::new(),
                 nn_outputs: Vec::new(),
+                id: model_id,
             },
             // speed: Speed(0.0),
             // velocity: Velocity::zero(),
-            mass: ColliderMassProperties::Mass(3000.0),
-            rigid_body: RigidBody::Dynamic,
-            collider: Collider::cuboid(5.0, 8.0),
-            events: ActiveEvents::COLLISION_EVENTS,
-            damping: Damping {
-                angular_damping: 100.0,
-                linear_damping: 100.0,
-            },
-            sleep: Sleeping::disabled(),
-            ccd: Ccd::enabled(),
-            collision_groups: CollisionGroups {
-                memberships: Group::GROUP_1,
-                filters: Group::GROUP_2,
-            },
+            // mass: ColliderMassProperties::Mass(3000.0),
+            // rigid_body: RigidBody::Dynamic,
+            // collider: Collider::cuboid(5.0, 8.0),
+            // events: ActiveEvents::COLLISION_EVENTS,
+            // damping: Damping {
+            //     angular_damping: 100.0,
+            //     linear_damping: 100.0,
+            // },
+            // sleep: Sleeping::disabled(),
+            // ccd: Ccd::enabled(),
+            // collision_groups: CollisionGroups {
+            //     memberships: Group::GROUP_1,
+            //     filters: Group::GROUP_2,
+            // },
         }
     }
 

@@ -1,16 +1,8 @@
-use bevy::{math::vec3, prelude::*};
+use bevy::prelude::*;
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_rapier2d::prelude::{NoUserData, RapierConfiguration, RapierPhysicsPlugin};
-use steering::{
-    car::{Car, CarPlugin},
-    configs::*,
-    dojo::DojoPlugin,
-    enemy::EnemyPlugin,
-    // gui::GuiPlugin,
-    population::PopulationPlugin,
-    resources::MaxDistanceTravelled,
-};
+use steering::{car::CarPlugin, configs::*, dojo::DojoPlugin, population::PopulationPlugin};
 
 fn main() {
     App::new()
@@ -36,7 +28,6 @@ fn main() {
         // .add_plugin(LogDiagnosticsPlugin::default())
         // .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(CarPlugin)
-        .add_plugin(EnemyPlugin)
         .add_plugin(PopulationPlugin)
         // .add_plugin(GuiPlugin)
         .add_plugin(DojoPlugin)
@@ -69,19 +60,19 @@ fn setup(
     // spawn_bound_trucks(&mut commands, &asset_server);
 }
 
-fn camera_follow_system(
-    // settings: Res<Settings>,
-    max_distance_travelled: Res<MaxDistanceTravelled>,
-    mut cam_query: Query<(&Camera, &mut Transform), Without<Car>>,
-) {
-    let (_, mut cam_transform) = cam_query.get_single_mut().unwrap();
-    // if settings.is_camera_follow {
-    cam_transform.translation = cam_transform.translation.lerp(
-        vec3(cam_transform.translation.x, max_distance_travelled.0, 0.0),
-        0.05,
-    );
-    // }
-}
+// fn camera_follow_system(
+//     // settings: Res<Settings>,
+//     max_distance_travelled: Res<MaxDistanceTravelled>,
+//     mut cam_query: Query<(&Camera, &mut Transform), Without<Car>>,
+// ) {
+//     let (_, mut cam_transform) = cam_query.get_single_mut().unwrap();
+//     // if settings.is_camera_follow {
+//     cam_transform.translation = cam_transform.translation.lerp(
+//         vec3(cam_transform.translation.x, max_distance_travelled.0, 0.0),
+//         0.05,
+//     );
+//     // }
+// }
 
 fn spawn_roads(commands: &mut Commands, asset_server: &AssetServer) {
     // Road
