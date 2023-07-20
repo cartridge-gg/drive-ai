@@ -434,7 +434,7 @@ mod drive {
         // only read them once (pass them in here?)
         let mut calldata = ArrayTrait::new();
         calldata.append(model);
-        // ctx.world.execute('move_enemies', calldata.span());
+        ctx.world.execute('move_enemies', calldata.span());
     }
 }
 
