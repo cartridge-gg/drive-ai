@@ -65,7 +65,12 @@ impl Plugin for CarPlugin {
             // .insert_resource(RayCastSensors::default())
             // .add_startup_system(setup)
             // .add_systems((car_render_system, spawn_cars));
-            .add_systems((spawn_car, update_car, collision_events_system));
+            .add_systems((
+                spawn_car,
+                update_car,
+                optimistic_move,
+                collision_events_system,
+            ));
         // .add_system(sensors_system)
         // .add_system(car_nn_controlled_system.in_schedule(CoreSchedule::FixedUpdate));
     }
@@ -150,14 +155,14 @@ fn collision_events_system(
     }
 }
 
-// fn car_render_system(mut car_query: Query<&mut Transform, With<Car>>) {
-//     for mut transform in car_query.iter_mut() {
-//         let movement_direction = transform.rotation * Vec3::Y;
-//         let movement_distance = 3.5;
-//         let translation_delta = movement_direction * movement_distance;
-//         transform.translation += translation_delta;
-//     }
-// }
+fn optimistic_move(mut car_query: Query<&mut Transform, With<Car>>) {
+    for mut transform in car_query.iter_mut() {
+        let movement_direction = transform.rotation * Vec3::Y;
+        let movement_distance = 3.0; // TODO: should be matched to contract
+        let translation_delta = movement_direction * movement_distance;
+        transform.translation += translation_delta;
+    }
+}
 
 // fn car_nn_controlled_system(
 //     mut car_query: Query<(&mut Speed, &mut Model, &mut Transform), With<Car>>,
