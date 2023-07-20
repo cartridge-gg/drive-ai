@@ -154,7 +154,7 @@ fn closest_position(ray: @Ray, mut positions: Span<Position>) -> Fixed {
     // Return value if sensor does not intersect any edges
     let mut closest = FixedTrait::new(0, false);
     // Max possible intersection distance
-    let ray_length = FixedTrait::new(RAY_LENGTH);
+    let ray_length = FixedTrait::new(RAY_LENGTH, false);
 
     loop {
         match positions.pop_front() {
