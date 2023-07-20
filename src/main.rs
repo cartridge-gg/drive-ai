@@ -1,7 +1,7 @@
 use bevy::{math::vec3, prelude::*};
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
 use bevy_pancam::{PanCam, PanCamPlugin};
-use bevy_rapier2d::prelude::{NoUserData, RapierConfiguration, RapierPhysicsPlugin};
+use bevy_rapier2d::prelude::*;
 use steering::{
     car::{Car, CarPlugin},
     configs::*,
@@ -37,9 +37,9 @@ fn main() {
         .add_plugin(PopulationPlugin)
         // .add_plugin(GuiPlugin)
         .add_plugin(DojoPlugin)
-        // .add_plugin(RapierDebugRenderPlugin::default())
+        .add_plugin(RapierDebugRenderPlugin::default())
         .insert_resource(ClearColor(Color::rgb_u8(36, 36, 36)))
-        // .insert_resource(ClearColor(Color::WHITE))
+        .insert_resource(ClearColor(Color::WHITE))
         // .insert_resource(Msaa::Off)
         .add_startup_system(setup)
         .add_system(bevy::window::close_on_esc)
@@ -104,43 +104,45 @@ fn spawn_roads(commands: &mut Commands, asset_server: &AssetServer) {
         ..default()
     });
 
-    // // Road colliders
-    // // left
-    // let ry = 5.0 * ROAD_SPRITE_H * SPRITE_SCALE_FACTOR;
-    // let rx_min = ROAD_SPRITE_W / 2.0 * SPRITE_SCALE_FACTOR + 238.0;
-    // commands.spawn((
-    //     SpriteBundle {
-    //         transform: Transform::from_xyz(rx_min, ry, 0.0).with_scale(vec3(0.5, 0.5, 1.0)),
-    //         ..default()
-    //     },
-    //     RigidBody::Fixed,
-    //     Collider::cuboid(
-    //         5.0,
-    //         ROAD_SPRITE_H * SPRITE_SCALE_FACTOR * NUM_ROAD_TILES as f32 * 5.0,
-    //     ),
-    // ));
-    // // right
-    // let rx_max = ROAD_SPRITE_W * SPRITE_SCALE_FACTOR + 248.0;
-    // commands.spawn((
-    //     SpriteBundle {
-    //         transform: Transform::from_xyz(rx_max, ry, 0.0).with_scale(vec3(0.5, 0.5, 1.0)),
-    //         ..default()
-    //     },
-    //     RigidBody::Fixed,
-    //     Collider::cuboid(
-    //         5.0,
-    //         ROAD_SPRITE_H * SPRITE_SCALE_FACTOR * NUM_ROAD_TILES as f32 * 5.0,
-    //     ),
-    // ));
-    // // top
-    // commands.spawn((
-    //     SpriteBundle {
-    //         transform: Transform::from_xyz(600.0, road_end_y, 0.0).with_scale(vec3(0.5, 0.5, 1.0)),
-    //         ..default()
-    //     },
-    //     RigidBody::Fixed,
-    //     Collider::cuboid(500.0 * SPRITE_SCALE_FACTOR, 10.0),
-    // ));
+    // Road colliders
+    // left
+    let ry = 5.0 * ROAD_SPRITE_H * SPRITE_SCALE_FACTOR;
+    let rx_min = ROAD_SPRITE_W / 2.0 * SPRITE_SCALE_FACTOR + 238.0;
+    commands.spawn((
+        SpriteBundle {
+            transform: Transform::from_xyz(rx_min, ry, 0.0).with_scale(vec3(0.5, 0.5, 1.0)),
+            ..default()
+        },
+        RigidBody::Fixed,
+        Collider::cuboid(
+            5.0,
+            ROAD_SPRITE_H * SPRITE_SCALE_FACTOR * NUM_ROAD_TILES as f32 * 5.0,
+        ),
+    ));
+
+    // right
+    let rx_max = ROAD_SPRITE_W * SPRITE_SCALE_FACTOR + 248.0;
+    commands.spawn((
+        SpriteBundle {
+            transform: Transform::from_xyz(rx_max, ry, 0.0).with_scale(vec3(0.5, 0.5, 1.0)),
+            ..default()
+        },
+        RigidBody::Fixed,
+        Collider::cuboid(
+            5.0,
+            ROAD_SPRITE_H * SPRITE_SCALE_FACTOR * NUM_ROAD_TILES as f32 * 5.0,
+        ),
+    ));
+
+    // top
+    commands.spawn((
+        SpriteBundle {
+            transform: Transform::from_xyz(600.0, road_end_y, 0.0).with_scale(vec3(0.5, 0.5, 1.0)),
+            ..default()
+        },
+        RigidBody::Fixed,
+        Collider::cuboid(500.0 * SPRITE_SCALE_FACTOR, 10.0),
+    ));
 }
 
 // fn settings_system(

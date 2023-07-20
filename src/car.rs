@@ -3,6 +3,7 @@ use crate::nn::Net;
 use crate::*;
 use bevy::{log, math::vec3, prelude::*};
 use bevy_prototype_debug_lines::DebugLinesPlugin;
+use bevy_rapier2d::prelude::*;
 use starknet::core::types::FieldElement;
 
 pub struct CarPlugin;
@@ -43,15 +44,15 @@ pub struct CarBundle {
     fitness: Fitness,
     model: Model,
     // speed: Speed,
-    // velocity: Velocity,
-    // mass: ColliderMassProperties,
-    // rigid_body: RigidBody,
-    // collider: Collider,
-    // events: ActiveEvents,
-    // damping: Damping,
+    velocity: Velocity,
+    mass: ColliderMassProperties,
+    rigid_body: RigidBody,
+    collider: Collider,
+    events: ActiveEvents,
+    damping: Damping,
     // sleep: Sleeping,
-    // ccd: Ccd,
-    // collision_groups: CollisionGroups,
+    ccd: Ccd,
+    collision_groups: CollisionGroups,
 }
 
 impl Plugin for CarPlugin {
@@ -62,9 +63,9 @@ impl Plugin for CarPlugin {
             // .register_type::<Speed>()
             // .insert_resource(RayCastSensors::default())
             // .add_startup_system(setup)
-            .add_system(spawn_cars);
-        // .add_systems((car_render_system, spawn_cars));
-        // .add_system(collision_events_system)
+            .add_system(spawn_cars)
+            // .add_systems((car_render_system, spawn_cars));
+            .add_system(collision_events_system);
         // .add_system(sensors_system)
         // .add_system(car_nn_controlled_system.in_schedule(CoreSchedule::FixedUpdate));
     }
@@ -110,20 +111,20 @@ fn spawn_cars(mut events: EventReader<SpawnCars>, sender: Res<SpawnRacersCommand
 //     }
 // }
 
-// fn collision_events_system(
-//     mut commands: Commands,
-//     mut collision_events: EventReader<CollisionEvent>,
-// ) {
-//     for collision_event in collision_events.iter() {
-//         match collision_event {
-//             CollisionEvent::Started(entity1, entity2, _) => {
-//                 commands.entity(*entity2).remove::<Car>();
-//                 commands.entity(*entity1).remove::<Car>();
-//             }
-//             _ => {}
-//         }
-//     }
-// }
+fn collision_events_system(
+    mut commands: Commands,
+    mut collision_events: EventReader<CollisionEvent>,
+) {
+    for collision_event in collision_events.iter() {
+        match collision_event {
+            CollisionEvent::Started(entity1, entity2, _) => {
+                commands.entity(*entity2).remove::<Car>();
+                commands.entity(*entity1).remove::<Car>();
+            }
+            _ => {}
+        }
+    }
+}
 
 // fn car_render_system(mut car_query: Query<&mut Transform, With<Car>>) {
 //     for mut transform in car_query.iter_mut() {
@@ -279,21 +280,21 @@ impl CarBundle {
                 id: model_id,
             },
             // speed: Speed(0.0),
-            // velocity: Velocity::zero(),
-            // mass: ColliderMassProperties::Mass(3000.0),
-            // rigid_body: RigidBody::Dynamic,
-            // collider: Collider::cuboid(5.0, 8.0),
-            // events: ActiveEvents::COLLISION_EVENTS,
-            // damping: Damping {
-            //     angular_damping: 100.0,
-            //     linear_damping: 100.0,
-            // },
+            velocity: Velocity::zero(),
+            mass: ColliderMassProperties::Mass(3000.0),
+            rigid_body: RigidBody::Dynamic,
+            collider: Collider::cuboid(5.0, 8.0),
+            events: ActiveEvents::COLLISION_EVENTS,
+            damping: Damping {
+                angular_damping: 100.0,
+                linear_damping: 100.0,
+            },
             // sleep: Sleeping::disabled(),
-            // ccd: Ccd::enabled(),
-            // collision_groups: CollisionGroups {
-            //     memberships: Group::GROUP_1,
-            //     filters: Group::GROUP_2,
-            // },
+            ccd: Ccd::enabled(),
+            collision_groups: CollisionGroups {
+                memberships: Group::GROUP_1,
+                filters: Group::GROUP_2,
+            },
         }
     }
 
