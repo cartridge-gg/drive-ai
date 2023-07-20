@@ -15,7 +15,7 @@ const HALF_GRID_WIDTH: u128 = 200;
 
 const CAR_HEIGHT: u128 = 32;
 const CAR_WIDTH: u128 = 16;
-const CAR_VELOCITY: u128 = 50;
+const CAR_VELOCITY: u128 = 20;
 
 #[derive(Component, Serde, SerdeLen, Drop, Copy)]
 struct Position {
@@ -84,6 +84,8 @@ mod spawn_enemies {
         let mut i: usize = 0;
         // Get the grid height as [`NonZero<felt252>`] for later div.
         let grid_height: felt252 = GRID_HEIGHT.into();
+
+        set!(ctx.world, (model, 'y').into(), (Position { x: 0, y: 0 }));
         // GRID_HEIGHT is a constant not set to 0 so it can't panic.
         let grid_height: NonZero<felt252> = grid_height.try_into().unwrap();
         // Get the grid height as [`NonZero<u256>`] for later div.
@@ -107,7 +109,7 @@ mod spawn_enemies {
             // Resize the value so it fits in the grid height.
             let (_, y_rem) = u256_safe_divmod(base_value.into(), big_grid_height);
             // Spawn the enemy.
-            set !(
+            set!(
                 ctx.world,
                 (model, i).into(),
                 (Position {
@@ -204,7 +206,6 @@ mod move_enemies {
     use traits::{TryInto, Into};
 
     use dojo::world::Context;
-
     use super::{Position, CAR_HEIGHT, CAR_VELOCITY, ENEMIES_NB, GRID_HEIGHT, GRID_WIDTH, CAR_WIDTH};
 
     /// Executes a tick for the enemies.
@@ -218,16 +219,18 @@ mod move_enemies {
         // Iterate through the enemies and move them. If the are out of the grid respawn them at 
         // the top of the grid
         let mut i: u8 = 0;
+        let current_min = get!(ctx.world, (model, 'y').into(), Position);
         loop {
             if i == ENEMIES_NB {
                 break ();
             }
             let key = (model, i).into();
-            let position = get !(ctx.world, key, Position);
-            let position = move(position, CAR_HEIGHT, CAR_VELOCITY, i.into());
-            set !(ctx.world, key, (Position { x: position.x, y: position.y }));
+            let position = get!(ctx.world, key, Position);
+            let position = move(position, CAR_HEIGHT, CAR_VELOCITY, i.into(), current_min.y);
+            set!(ctx.world, key, (Position { x: position.x, y: position.y }));
             i += 1;
         }
+        set!(ctx.world, (model, 'y').into(), (Position { x: 0, y: current_min.y + 50 }));
     }
 
     /// Enemy
@@ -256,7 +259,9 @@ mod move_enemies {
     ///
     /// * [`Position`] - The updated position of the enemy after being moved.
     #[inline(always)]
-    fn move(position: Position, height: u128, velocity: u128, enemy_nb: u128) -> Position {
+    fn move(
+        position: Position, height: u128, velocity: u128, enemy_nb: u128, min_y: u128
+    ) -> Position {
         let y = position.y;
         let x = position.x;
 
@@ -268,8 +273,8 @@ mod move_enemies {
         let x_range: u128 = GRID_WIDTH.into() / ENEMIES_NB.into() - 2 * CAR_WIDTH.into();
         let base_value = felt252_div(x.into(), grid_width);
         let (_, x_rem) = u256_safe_divmod(base_value.into(), u256_as_non_zero(x_range.into()));
-        let new_y = if y <= velocity + height {
-            GRID_HEIGHT + y + height - velocity
+        let new_y = if y <= min_y + velocity + height {
+            GRID_HEIGHT + y + min_y + height - velocity
         } else {
             y - (velocity + height)
         };

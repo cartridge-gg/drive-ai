@@ -363,10 +363,10 @@ mod spawn_racer {
     const FIFTY: u128 = 922337203685477580800;
 
     fn execute(ctx: Context, model: felt252, position: Vec2) {
-        // let position = Vec2Trait::new(
-        //     FixedTrait::new(HALF_GRID_WIDTH, false), FixedTrait::new(0, false)
-        // );
-        set !(
+        let position = Vec2Trait::new(
+            FixedTrait::new_unscaled(200, false), FixedTrait::new_unscaled(200, false)
+        );
+        set!(
             ctx.world,
             model.into(),
             (
@@ -399,7 +399,7 @@ mod drive {
     use super::{Racer, Sensors, compute_sensors};
 
     fn execute(ctx: Context, model: felt252) {
-        let mut vehicle = get !(ctx.world, model.into(), Vehicle);
+        let mut vehicle = get!(ctx.world, model.into(), Vehicle);
 
         let mut enemies = ArrayTrait::<Position>::new();
         let mut i: u8 = 0;
@@ -408,7 +408,7 @@ mod drive {
                 break ();
             }
             let key = (model, i).into();
-            let position = get !(ctx.world, key, Position);
+            let position = get!(ctx.world, key, Position);
             enemies.append(position);
             i += 1;
         }
@@ -423,7 +423,7 @@ mod drive {
         // 3. Update car position
         vehicle.control(controls);
         vehicle.drive();
-        set !(
+        set!(
             ctx.world,
             model.into(),
             (Vehicle { position: vehicle.position, steer: vehicle.steer, speed: vehicle.speed })
