@@ -3,7 +3,6 @@ use bevy::prelude::*;
 // use rand::distributions::WeightedIndex;
 // use rand::prelude::Distribution;
 
-use crate::car::SpawnCars;
 use crate::car::{Car, Fitness, Model};
 // use crate::enemy::{spawn_bound_trucks, BoundControlTruck, Enemy};
 // use crate::nn::Net;
@@ -14,15 +13,10 @@ pub struct PopulationPlugin;
 impl Plugin for PopulationPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(MaxDistanceTravelled(0.0))
-            .add_startup_system(setup)
+            // .add_startup_system(setup)
             .add_system(population_stats_system);
         // .add_systems((population_stats_system, generation_reset_system));
     }
-}
-
-fn setup(mut spawn_cars: EventWriter<SpawnCars>) {
-    //     spawn_cars(&mut commands, &asset_server, &mut settings, None);
-    spawn_cars.send(SpawnCars);
 }
 
 fn population_stats_system(
