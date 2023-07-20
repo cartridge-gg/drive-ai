@@ -63,9 +63,8 @@ impl Plugin for CarPlugin {
             // .register_type::<Speed>()
             // .insert_resource(RayCastSensors::default())
             // .add_startup_system(setup)
-            .add_system(spawn_cars)
             // .add_systems((car_render_system, spawn_cars));
-            .add_system(collision_events_system);
+            .add_systems((spawn_cars, collision_events_system));
         // .add_system(sensors_system)
         // .add_system(car_nn_controlled_system.in_schedule(CoreSchedule::FixedUpdate));
     }
@@ -76,7 +75,7 @@ pub struct SpawnCars;
 fn spawn_cars(mut events: EventReader<SpawnCars>, sender: Res<SpawnRacersCommand>) {
     for _ in events.iter() {
         if let Err(e) = sender.try_send() {
-            log::error!("{e}");
+            log::error!("Spawn racers channel: {e}");
         }
     }
 }
@@ -118,8 +117,8 @@ fn collision_events_system(
     for collision_event in collision_events.iter() {
         match collision_event {
             CollisionEvent::Started(entity1, entity2, _) => {
-                commands.entity(*entity2).remove::<Car>();
-                commands.entity(*entity1).remove::<Car>();
+                commands.entity(*entity2).remove::<CarBundle>();
+                commands.entity(*entity1).remove::<CarBundle>();
             }
             _ => {}
         }

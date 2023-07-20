@@ -110,20 +110,27 @@ fn sync_dojo_state(
     drive: Res<DriveCommand>,
     update_vehicle: Res<UpdateVehicleCommand>,
     update_enemies: Res<UpdateEnemiesCommand>,
+    spawn_racers: Res<SpawnRacersCommand>,
+    cars: Query<&Collider, With<Car>>,
 ) {
     let mut dojo_time = dojo_sync_time.single_mut();
 
     if dojo_time.timer.just_finished() {
         dojo_time.timer.reset();
-
-        if let Err(e) = update_vehicle.try_send() {
-            log::error!("{e}");
-        }
-        if let Err(e) = drive.try_send() {
-            log::error!("{e}");
-        }
-        if let Err(e) = update_enemies.try_send() {
-            log::error!("{e}");
+        if cars.is_empty() {
+            if let Err(e) = spawn_racers.try_send() {
+                log::error!("Spawn racers channel: {e}");
+            }
+        } else {
+            if let Err(e) = update_vehicle.try_send() {
+                log::error!("Update vehicle channel: {e}");
+            }
+            if let Err(e) = drive.try_send() {
+                log::error!("Drive channel: {e}");
+            }
+            if let Err(e) = update_enemies.try_send() {
+                log::error!("Update enemies channel: {e}");
+            }
         }
     } else {
         dojo_time.timer.tick(time.delta());
