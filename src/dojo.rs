@@ -10,6 +10,7 @@ use bevy::ecs::system::SystemState;
 use bevy::log;
 use bevy::math::vec3;
 use bevy::prelude::*;
+use bevy_rapier2d::prelude::*;
 use bevy_tokio_tasks::TaskContext;
 use bevy_tokio_tasks::{TokioTasksPlugin, TokioTasksRuntime};
 use dojo_client::contract::world::WorldContract;
@@ -174,6 +175,10 @@ fn spawn_racers_thread(
                                 EnemyType::Truck => 3.0,
                                 _ => 2.5,
                             };
+                            let collider = match enemy_type {
+                                EnemyType::Truck => Collider::cuboid(6.0, 15.0),
+                                _ => Collider::cuboid(4.0, 8.0),
+                            };
 
                             ctx.world.spawn((
                                 SpriteBundle {
@@ -185,6 +190,16 @@ fn spawn_racers_thread(
                                     )),
                                     texture: asset_server.load(enemy_type.get_sprite()),
                                     ..default()
+                                },
+                                // RigidBody::Dynamic,
+                                Velocity::zero(),
+                                ColliderMassProperties::Mass(1.0),
+                                Friction::new(100.0),
+                                ActiveEvents::COLLISION_EVENTS,
+                                collider,
+                                Damping {
+                                    angular_damping: 2.0,
+                                    linear_damping: 2.0,
                                 },
                                 Enemy { is_hit: false },
                                 EnemyId(id.into()),
@@ -210,7 +225,7 @@ fn drive_thread(env: Res<DojoEnv>, runtime: ResMut<TokioTasksRuntime>, mut comma
     let world_address = env.world_address;
     let block_id = env.block_id;
 
-    runtime.spawn_background_task(move |mut ctx| async move {
+    runtime.spawn_background_task(move |ctx| async move {
         let world = WorldContract::new(world_address, account.as_ref());
 
         let drive_system = world.system("drive", block_id).await.unwrap();
