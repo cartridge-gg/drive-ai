@@ -39,27 +39,23 @@ impl PostionImpl of PositionTrait {
                     y: FixedTrait::new_unscaled(*self.y + CAR_HEIGHT, false)
                 }
             );
-        vertices
-            .append(
-                Vec2 {
-                    x: FixedTrait::new_unscaled(*self.x - CAR_WIDTH, false),
-                    y: FixedTrait::new_unscaled(*self.y + CAR_HEIGHT, false)
-                }
-            );
-        vertices
-            .append(
-                Vec2 {
-                    x: FixedTrait::new_unscaled(*self.x - CAR_WIDTH, false),
-                    y: FixedTrait::new_unscaled(*self.y - CAR_HEIGHT, false)
-                }
-            );
-        vertices
-            .append(
-                Vec2 {
-                    x: FixedTrait::new_unscaled(*self.x + CAR_WIDTH, false),
-                    y: FixedTrait::new_unscaled(*self.y - CAR_HEIGHT, false)
-                }
-            );
+
+        let x1 = if *self.x < CAR_WIDTH {
+            FixedTrait::new_unscaled(0, false)
+        } else {
+            FixedTrait::new_unscaled(*self.x - CAR_WIDTH, false)
+        };
+
+        let y1 = if *self.y < CAR_HEIGHT {
+            FixedTrait::new_unscaled(0, false)
+        } else {
+            FixedTrait::new_unscaled(*self.y - CAR_HEIGHT, false)
+        };
+
+        vertices.append(Vec2 { x: x1, y: FixedTrait::new_unscaled(*self.y + CAR_HEIGHT, false) });
+
+        vertices.append(Vec2 { x: x1, y: y1 });
+        vertices.append(Vec2 { x: FixedTrait::new_unscaled(*self.x + CAR_WIDTH, false), y: y1 });
         vertices.span()
     }
 }
@@ -111,7 +107,7 @@ mod spawn_enemies {
             // Resize the value so it fits in the grid height.
             let (_, y_rem) = u256_safe_divmod(base_value.into(), big_grid_height);
             // Spawn the enemy.
-            set!(
+            set !(
                 ctx.world,
                 (model, i).into(),
                 (Position {
@@ -227,9 +223,9 @@ mod move_enemies {
                 break ();
             }
             let key = (model, i).into();
-            let position = get!(ctx.world, key, Position);
+            let position = get !(ctx.world, key, Position);
             let position = move(position, CAR_HEIGHT, CAR_VELOCITY, i.into());
-            set!(ctx.world, key, (Position { x: position.x, y: position.y }));
+            set !(ctx.world, key, (Position { x: position.x, y: position.y }));
             i += 1;
         }
     }
