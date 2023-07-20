@@ -1,10 +1,10 @@
-use crate::dojo::SpawnRacersCommand;
-use crate::nn::Net;
+use crate::dojo::fixed_to_f32;
 use crate::*;
+use crate::{dojo::dojo_to_bevy_coordinate, nn::Net};
 use bevy::{log, math::vec3, prelude::*};
 use bevy_prototype_debug_lines::DebugLinesPlugin;
 use bevy_rapier2d::prelude::*;
-use starknet::core::types::FieldElement;
+use starknet::core::{types::FieldElement, utils::cairo_short_string_to_felt};
 
 pub struct CarPlugin;
 
@@ -58,24 +58,49 @@ pub struct CarBundle {
 impl Plugin for CarPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(DebugLinesPlugin::default())
-            .add_event::<SpawnCars>()
+            .add_event::<SpawnCar>()
+            .add_event::<UpdateCar>()
             // .register_type::<TurnSpeed>()
             // .register_type::<Speed>()
             // .insert_resource(RayCastSensors::default())
             // .add_startup_system(setup)
             // .add_systems((car_render_system, spawn_cars));
-            .add_systems((spawn_cars, collision_events_system));
+            .add_systems((spawn_car, update_car, collision_events_system));
         // .add_system(sensors_system)
         // .add_system(car_nn_controlled_system.in_schedule(CoreSchedule::FixedUpdate));
     }
 }
 
-pub struct SpawnCars;
+pub struct SpawnCar;
 
-fn spawn_cars(mut events: EventReader<SpawnCars>, sender: Res<SpawnRacersCommand>) {
+fn spawn_car(
+    mut events: EventReader<SpawnCar>,
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+) {
     for _ in events.iter() {
-        if let Err(e) = sender.try_send() {
-            log::error!("Spawn racers channel: {e}");
+        let model_id = cairo_short_string_to_felt(configs::MODEL_NAME).unwrap();
+        commands.spawn(CarBundle::new(&asset_server, model_id));
+    }
+}
+
+pub struct UpdateCar {
+    pub vehicle: Vec<FieldElement>,
+}
+
+fn update_car(
+    mut events: EventReader<UpdateCar>,
+    mut query: Query<(&mut Transform, &Model), With<Car>>,
+) {
+    for e in events.iter() {
+        if let Ok((mut transform, model)) = query.get_single_mut() {
+            let (new_x, new_y) =
+                dojo_to_bevy_coordinate(fixed_to_f32(e.vehicle[0]), fixed_to_f32(e.vehicle[2]));
+
+            log::info!("Vehicle Position ({}), x: {new_x}, y: {new_y}", model.id);
+
+            transform.translation.x = new_x;
+            transform.translation.y = new_y;
         }
     }
 }

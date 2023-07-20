@@ -6,6 +6,7 @@ use steering::{
     car::{Car, CarPlugin},
     configs::*,
     dojo::DojoPlugin,
+    enemy::EnemyPlugin,
     population::PopulationPlugin,
     MaxDistanceTravelled,
 };
@@ -34,6 +35,7 @@ fn main() {
         // .add_plugin(LogDiagnosticsPlugin::default())
         // .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(CarPlugin)
+        .add_plugin(EnemyPlugin)
         .add_plugin(PopulationPlugin)
         // .add_plugin(GuiPlugin)
         .add_plugin(DojoPlugin)

@@ -1,14 +1,13 @@
 use crate::car::Car;
-use crate::car::CarBundle;
 use crate::car::Model;
+use crate::car::SpawnCar;
+use crate::car::UpdateCar;
 use crate::configs;
-use crate::enemy::Enemy;
-use crate::enemy::EnemyId;
-use crate::enemy::EnemyType;
+use crate::enemy::SpawnEnemies;
+use crate::enemy::UpdateEnemy;
 use crate::ROAD_X_MIN;
 use bevy::ecs::system::SystemState;
 use bevy::log;
-use bevy::math::vec3;
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 use bevy_tokio_tasks::TaskContext;
@@ -168,51 +167,14 @@ fn spawn_racers_thread(
             {
                 Ok(_) => {
                     ctx.run_on_main_thread(move |ctx| {
-                        let asset_server = ctx.world.get_resource::<AssetServer>().unwrap();
-                        ctx.world.spawn(CarBundle::new(&asset_server, model_id));
-                    })
-                    .await;
+                        let mut state: SystemState<(
+                            EventWriter<SpawnCar>,
+                            EventWriter<SpawnEnemies>,
+                        )> = SystemState::new(ctx.world);
+                        let (mut spawn_car, mut spawn_enemies) = state.get_mut(ctx.world);
 
-                    ctx.run_on_main_thread(move |ctx| {
-                        for id in 0..configs::DOJO_ENEMIES_NB {
-                            let asset_server = ctx.world.get_resource::<AssetServer>().unwrap();
-
-                            let enemy_type = EnemyType::random();
-                            let enemy_scale = match enemy_type {
-                                EnemyType::Truck => 3.0,
-                                _ => 2.5,
-                            };
-                            let collider = match enemy_type {
-                                EnemyType::Truck => Collider::cuboid(6.0, 15.0),
-                                _ => Collider::cuboid(4.0, 8.0),
-                            };
-
-                            ctx.world.spawn((
-                                SpriteBundle {
-                                    // TODO: workaround: spawn outside of screen because we know all enermies are spawned but don't know their positions yet
-                                    transform: Transform::from_xyz(0.0, 0.0, 0.0).with_scale(vec3(
-                                        enemy_scale,
-                                        enemy_scale,
-                                        1.0,
-                                    )),
-                                    texture: asset_server.load(enemy_type.get_sprite()),
-                                    ..default()
-                                },
-                                // RigidBody::Dynamic,
-                                Velocity::zero(),
-                                ColliderMassProperties::Mass(1.0),
-                                Friction::new(100.0),
-                                ActiveEvents::COLLISION_EVENTS,
-                                collider,
-                                Damping {
-                                    angular_damping: 2.0,
-                                    linear_damping: 2.0,
-                                },
-                                Enemy { is_hit: false },
-                                EnemyId(id.into()),
-                                enemy_type,
-                            ));
-                        }
+                        spawn_enemies.send(SpawnEnemies);
+                        spawn_car.send(SpawnCar);
                     })
                     .await;
                 }
@@ -257,7 +219,7 @@ fn update_vehicle_thread(
     runtime: ResMut<TokioTasksRuntime>,
     mut commands: Commands,
 ) {
-    let (tx, mut rx) = mpsc::channel::<()>(8);
+    let (tx, mut rx) = mpsc::channel::<()>(16);
     commands.insert_resource(UpdateVehicleCommand(tx));
 
     let account = env.account.clone();
@@ -277,26 +239,14 @@ fn update_vehicle_thread(
                     .await
                 {
                     Ok(vehicle) => {
-                        // log::info!("{vehicle:#?}");
-
-                        let (new_x, new_y) = dojo_to_bevy_coordinate(
-                            fixed_to_f32(vehicle[0]),
-                            fixed_to_f32(vehicle[2]),
-                        );
-
-                        log::info!("Vehicle Position ({model_id}), x: {new_x}, y: {new_y}");
-
                         ctx.run_on_main_thread(move |ctx| {
-                            let mut state: SystemState<Query<&mut Transform, With<Car>>> =
+                            let mut state: SystemState<EventWriter<UpdateCar>> =
                                 SystemState::new(ctx.world);
-                            let mut query = state.get_mut(ctx.world);
+                            let mut update_car = state.get_mut(ctx.world);
 
-                            if let Ok(mut transform) = query.get_single_mut() {
-                                transform.translation.x = new_x;
-                                transform.translation.y = new_y;
-                            }
+                            update_car.send(UpdateCar { vehicle })
                         })
-                        .await
+                        .await;
                     }
                     Err(e) => {
                         log::error!("Query `Vehicle` component: {e}");
@@ -312,7 +262,7 @@ fn update_enemies_thread(
     runtime: ResMut<TokioTasksRuntime>,
     mut commands: Commands,
 ) {
-    let (tx, mut rx) = mpsc::channel::<()>(8);
+    let (tx, mut rx) = mpsc::channel::<()>(16);
     commands.insert_resource(UpdateEnemiesCommand(tx));
 
     let account = env.account.clone();
@@ -327,6 +277,7 @@ fn update_enemies_thread(
             let model_id = get_model_id(ctx.clone()).await;
 
             if let Some(model_id) = model_id {
+                // TODO: query multiple enemies at once
                 for i in 0..configs::DOJO_ENEMIES_NB {
                     let enemy_id: FieldElement = i.into();
 
@@ -339,26 +290,12 @@ fn update_enemies_thread(
                         .await
                     {
                         Ok(position) => {
-                            // log::info!("{position:#?}");
-
-                            let (new_x, new_y) = dojo_to_bevy_coordinate(
-                                position[0].to_string().parse().unwrap(),
-                                position[1].to_string().parse().unwrap(),
-                            );
-
-                            log::info!("Enermy Position ({enemy_id}), x: {new_x}, y: {new_y}");
-
                             ctx.run_on_main_thread(move |ctx| {
-                                let mut state: SystemState<
-                                    Query<(&mut Transform, &EnemyId), With<Enemy>>,
-                                > = SystemState::new(ctx.world);
-                                let mut query = state.get_mut(ctx.world);
-                                for (mut transform, enemy_id_comp) in query.iter_mut() {
-                                    if enemy_id_comp.0 == enemy_id {
-                                        transform.translation.x = new_x;
-                                        transform.translation.y = new_y;
-                                    }
-                                }
+                                let mut state: SystemState<EventWriter<UpdateEnemy>> =
+                                    SystemState::new(ctx.world);
+                                let mut update_enemy = state.get_mut(ctx.world);
+
+                                update_enemy.send(UpdateEnemy { position, enemy_id })
                             })
                             .await
                         }
@@ -410,7 +347,7 @@ impl UpdateEnemiesCommand {
     }
 }
 
-fn fixed_to_f32(val: FieldElement) -> f32 {
+pub fn fixed_to_f32(val: FieldElement) -> f32 {
     BigUint::from_str(&val.to_string())
         .unwrap()
         .div(BigUint::from_i8(2).unwrap().pow(64))
@@ -418,7 +355,7 @@ fn fixed_to_f32(val: FieldElement) -> f32 {
         .unwrap()
 }
 
-fn dojo_to_bevy_coordinate(dojo_x: f32, dojo_y: f32) -> (f32, f32) {
+pub fn dojo_to_bevy_coordinate(dojo_x: f32, dojo_y: f32) -> (f32, f32) {
     let bevy_x = dojo_x * configs::DOJO_TO_BEVY_RATIO_X + ROAD_X_MIN;
     let bevy_y = dojo_y * configs::DOJO_TO_BEVY_RATIO_Y;
 

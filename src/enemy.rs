@@ -1,8 +1,8 @@
-use bevy::prelude::*;
+use crate::{configs::*, dojo::dojo_to_bevy_coordinate};
+use bevy::{log, math::vec3, prelude::*};
+use bevy_rapier2d::prelude::*;
 use rand::{thread_rng, Rng};
 use starknet::core::types::FieldElement;
-
-// use crate::*;
 
 pub struct EnemyPlugin;
 
@@ -24,13 +24,90 @@ pub enum EnemyType {
 // #[derive(Component)]
 // pub struct BoundControlTruck;
 
-// impl Plugin for EnemyPlugin {
-//     fn build(&self, app: &mut App) {
-//         app.add_startup_system(setup)
-//             .add_system(update_enemies)
-//             .add_system(bound_control_system);
-//     }
-// }
+impl Plugin for EnemyPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_event::<SpawnEnemies>()
+            .add_event::<UpdateEnemy>()
+            .add_systems((spawn_enemies, update_enemy));
+        // app.add_startup_system(setup)
+        //     .add_system(update_enemies)
+        //     .add_system(bound_control_system);
+    }
+}
+
+pub struct SpawnEnemies;
+
+fn spawn_enemies(
+    mut events: EventReader<SpawnEnemies>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+) {
+    for _ in events.iter() {
+        for id in 0..DOJO_ENEMIES_NB {
+            let enemy_type = EnemyType::random();
+            let enemy_scale = match enemy_type {
+                EnemyType::Truck => 3.0,
+                _ => 2.5,
+            };
+            let collider = match enemy_type {
+                EnemyType::Truck => Collider::cuboid(6.0, 15.0),
+                _ => Collider::cuboid(4.0, 8.0),
+            };
+
+            commands.spawn((
+                SpriteBundle {
+                    // TODO: workaround: spawn outside of screen because we know all enermies are spawned but don't know their positions yet
+                    transform: Transform::from_xyz(0.0, 0.0, 0.0).with_scale(vec3(
+                        enemy_scale,
+                        enemy_scale,
+                        1.0,
+                    )),
+                    texture: asset_server.load(enemy_type.get_sprite()),
+                    ..default()
+                },
+                // RigidBody::Dynamic,
+                Velocity::zero(),
+                ColliderMassProperties::Mass(1.0),
+                Friction::new(100.0),
+                ActiveEvents::COLLISION_EVENTS,
+                collider,
+                Damping {
+                    angular_damping: 2.0,
+                    linear_damping: 2.0,
+                },
+                Enemy { is_hit: false },
+                EnemyId(id.into()),
+                enemy_type,
+            ));
+        }
+    }
+}
+
+pub struct UpdateEnemy {
+    pub position: Vec<FieldElement>,
+    pub enemy_id: FieldElement,
+}
+
+fn update_enemy(
+    mut events: EventReader<UpdateEnemy>,
+    mut query: Query<(&mut Transform, &EnemyId), With<Enemy>>,
+) {
+    for e in events.iter() {
+        let (new_x, new_y) = dojo_to_bevy_coordinate(
+            e.position[0].to_string().parse().unwrap(),
+            e.position[1].to_string().parse().unwrap(),
+        );
+
+        log::info!("Enermy Position ({}), x: {new_x}, y: {new_y}", e.enemy_id);
+
+        for (mut transform, enemy_id_comp) in query.iter_mut() {
+            if enemy_id_comp.0 == e.enemy_id {
+                transform.translation.x = new_x;
+                transform.translation.y = new_y;
+            }
+        }
+    }
+}
 
 // fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 //     spawn_enemies(&mut commands, &asset_server);
