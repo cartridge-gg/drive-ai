@@ -10,6 +10,8 @@ use bevy::ecs::system::SystemState;
 use bevy::log;
 use bevy::math::vec3;
 use bevy::prelude::*;
+use bevy_rapier2d::prelude::*;
+use bevy_tokio_tasks::TaskContext;
 use bevy_tokio_tasks::{TokioTasksPlugin, TokioTasksRuntime};
 use dojo_client::contract::world::WorldContract;
 use num::bigint::BigUint;
@@ -77,7 +79,7 @@ impl Plugin for DojoPlugin {
             .add_startup_systems((
                 setup,
                 spawn_racers_thread,
-                // drive_thread,
+                drive_thread,
                 update_vehicle_thread,
                 update_enemies_thread,
             ))
@@ -105,7 +107,7 @@ impl DojoSyncTime {
 fn sync_dojo_state(
     mut dojo_sync_time: Query<&mut DojoSyncTime>,
     time: Res<Time>,
-    // drive: Res<DriveCommand>,
+    drive: Res<DriveCommand>,
     update_vehicle: Res<UpdateVehicleCommand>,
     update_enemies: Res<UpdateEnemiesCommand>,
 ) {
@@ -117,9 +119,9 @@ fn sync_dojo_state(
         if let Err(e) = update_vehicle.try_send() {
             log::error!("{e}");
         }
-        // if let Err(e) = drive.try_send() {
-        //     log::error!("{e}");
-        // }
+        if let Err(e) = drive.try_send() {
+            log::error!("{e}");
+        }
         if let Err(e) = update_enemies.try_send() {
             log::error!("{e}");
         }
@@ -145,7 +147,7 @@ fn spawn_racers_thread(
         let spawn_racer_system = world.system("spawn_racer", block_id).await.unwrap();
 
         while let Some(_) = rx.recv().await {
-            let model_id: FieldElement = cairo_short_string_to_felt("model").unwrap();
+            let model_id = cairo_short_string_to_felt(configs::MODEL_NAME).unwrap();
 
             match spawn_racer_system
                 .execute(vec![
@@ -173,6 +175,10 @@ fn spawn_racers_thread(
                                 EnemyType::Truck => 3.0,
                                 _ => 2.5,
                             };
+                            let collider = match enemy_type {
+                                EnemyType::Truck => Collider::cuboid(6.0, 15.0),
+                                _ => Collider::cuboid(4.0, 8.0),
+                            };
 
                             ctx.world.spawn((
                                 SpriteBundle {
@@ -184,6 +190,16 @@ fn spawn_racers_thread(
                                     )),
                                     texture: asset_server.load(enemy_type.get_sprite()),
                                     ..default()
+                                },
+                                // RigidBody::Dynamic,
+                                Velocity::zero(),
+                                ColliderMassProperties::Mass(1.0),
+                                Friction::new(100.0),
+                                ActiveEvents::COLLISION_EVENTS,
+                                collider,
+                                Damping {
+                                    angular_damping: 2.0,
+                                    linear_damping: 2.0,
                                 },
                                 Enemy { is_hit: false },
                                 EnemyId(id.into()),
@@ -201,32 +217,33 @@ fn spawn_racers_thread(
     });
 }
 
-// fn drive_thread(
-//     env: Res<DojoEnv>,
-//     model: Res<Model>,
-//     runtime: ResMut<TokioTasksRuntime>,
-//     mut commands: Commands,
-// ) {
-//     let (tx, mut rx) = mpsc::channel::<()>(8);
-//     commands.insert_resource(DriveCommand(tx));
+fn drive_thread(env: Res<DojoEnv>, runtime: ResMut<TokioTasksRuntime>, mut commands: Commands) {
+    let (tx, mut rx) = mpsc::channel::<()>(8);
+    commands.insert_resource(DriveCommand(tx));
 
-//     let account = env.account.clone();
-//     let world_address = env.world_address;
-//     let block_id = env.block_id;
-//     let model_id = model.id;
+    let account = env.account.clone();
+    let world_address = env.world_address;
+    let block_id = env.block_id;
 
-//     runtime.spawn_background_task(move |_| async move {
-//         let world = WorldContract::new(world_address, account.as_ref());
+    runtime.spawn_background_task(move |ctx| async move {
+        let world = WorldContract::new(world_address, account.as_ref());
 
-//         let drive_system = world.system("drive", block_id).await.unwrap();
+        let drive_system = world.system("drive", block_id).await.unwrap();
 
-//         while let Some(_) = rx.recv().await {
-//             if let Err(e) = drive_system.execute(vec![model_id]).await {
-//                 log::error!("Run drive system: {e}");
-//             }
-//         }
-//     });
-// }
+        while let Some(_) = rx.recv().await {
+            let model_id = get_model_id(ctx.clone()).await;
+
+            match model_id {
+                Some(model_id) => {
+                    if let Err(e) = drive_system.execute(vec![model_id]).await {
+                        log::error!("Run drive system: {e}");
+                    }
+                }
+                None => {}
+            }
+        }
+    });
+}
 
 fn update_vehicle_thread(
     env: Res<DojoEnv>,
@@ -245,42 +262,38 @@ fn update_vehicle_thread(
         let vehicle_component = world.component("Vehicle", block_id).await.unwrap();
 
         while let Some(_) = rx.recv().await {
-            let model_id = ctx
-                .run_on_main_thread(move |ctx| {
-                    let mut state: SystemState<Query<&Model, With<Car>>> =
-                        SystemState::new(ctx.world);
-                    let query = state.get(ctx.world);
+            let model_id = get_model_id(ctx.clone()).await;
 
-                    query.single().id
-                })
-                .await;
-
-            match vehicle_component
-                .entity(FieldElement::ZERO, vec![model_id], block_id)
-                .await
-            {
-                Ok(vehicle) => {
-                    // log::info!("{vehicle:#?}");
-
-                    let (new_x, new_y) =
-                        dojo_to_bevy_coordinate(fixed_to_f32(vehicle[0]), fixed_to_f32(vehicle[2]));
-
-                    log::info!("Vehicle Position ({model_id}), x: {new_x}, y: {new_y}");
-
-                    ctx.run_on_main_thread(move |ctx| {
-                        let mut state: SystemState<Query<&mut Transform, With<Car>>> =
-                            SystemState::new(ctx.world);
-                        let mut query = state.get_mut(ctx.world);
-
-                        if let Ok(mut transform) = query.get_single_mut() {
-                            transform.translation.x = new_x;
-                            transform.translation.y = new_y;
-                        }
-                    })
+            if let Some(model_id) = model_id {
+                match vehicle_component
+                    .entity(FieldElement::ZERO, vec![model_id], block_id)
                     .await
-                }
-                Err(e) => {
-                    log::error!("Query `Vehicle` component: {e}");
+                {
+                    Ok(vehicle) => {
+                        // log::info!("{vehicle:#?}");
+
+                        let (new_x, new_y) = dojo_to_bevy_coordinate(
+                            fixed_to_f32(vehicle[0]),
+                            fixed_to_f32(vehicle[2]),
+                        );
+
+                        log::info!("Vehicle Position ({model_id}), x: {new_x}, y: {new_y}");
+
+                        ctx.run_on_main_thread(move |ctx| {
+                            let mut state: SystemState<Query<&mut Transform, With<Car>>> =
+                                SystemState::new(ctx.world);
+                            let mut query = state.get_mut(ctx.world);
+
+                            if let Ok(mut transform) = query.get_single_mut() {
+                                transform.translation.x = new_x;
+                                transform.translation.y = new_y;
+                            }
+                        })
+                        .await
+                    }
+                    Err(e) => {
+                        log::error!("Query `Vehicle` component: {e}");
+                    }
                 }
             }
         }
@@ -304,53 +317,47 @@ fn update_enemies_thread(
         let position_component = world.component("Position", block_id).await.unwrap();
 
         while let Some(_) = rx.recv().await {
-            let model_id = ctx
-                .run_on_main_thread(move |ctx| {
-                    let mut state: SystemState<Query<&Model, With<Car>>> =
-                        SystemState::new(ctx.world);
-                    let query = state.get(ctx.world);
+            let model_id = get_model_id(ctx.clone()).await;
 
-                    query.single().id
-                })
-                .await;
+            if let Some(model_id) = model_id {
+                for i in 0..configs::DOJO_ENEMIES_NB {
+                    let enemy_id: FieldElement = i.into();
 
-            for i in 0..configs::DOJO_ENEMIES_NB {
-                let enemy_id: FieldElement = i.into();
-
-                match position_component
-                    .entity(
-                        FieldElement::ZERO,
-                        vec![model_id, enemy_id.into()],
-                        block_id,
-                    )
-                    .await
-                {
-                    Ok(position) => {
-                        // log::info!("{position:#?}");
-
-                        let (new_x, new_y) = dojo_to_bevy_coordinate(
-                            position[0].to_string().parse().unwrap(),
-                            position[1].to_string().parse().unwrap(),
-                        );
-
-                        log::info!("Enermy Position ({enemy_id}), x: {new_x}, y: {new_y}");
-
-                        ctx.run_on_main_thread(move |ctx| {
-                            let mut state: SystemState<
-                                Query<(&mut Transform, &EnemyId), With<Enemy>>,
-                            > = SystemState::new(ctx.world);
-                            let mut query = state.get_mut(ctx.world);
-                            for (mut transform, enemy_id_comp) in query.iter_mut() {
-                                if enemy_id_comp.0 == enemy_id {
-                                    transform.translation.x = new_x;
-                                    transform.translation.y = new_y;
-                                }
-                            }
-                        })
+                    match position_component
+                        .entity(
+                            FieldElement::ZERO,
+                            vec![model_id, enemy_id.into()],
+                            block_id,
+                        )
                         .await
-                    }
-                    Err(e) => {
-                        log::error!("Query `Position` component: {e}");
+                    {
+                        Ok(position) => {
+                            // log::info!("{position:#?}");
+
+                            let (new_x, new_y) = dojo_to_bevy_coordinate(
+                                position[0].to_string().parse().unwrap(),
+                                position[1].to_string().parse().unwrap(),
+                            );
+
+                            log::info!("Enermy Position ({enemy_id}), x: {new_x}, y: {new_y}");
+
+                            ctx.run_on_main_thread(move |ctx| {
+                                let mut state: SystemState<
+                                    Query<(&mut Transform, &EnemyId), With<Enemy>>,
+                                > = SystemState::new(ctx.world);
+                                let mut query = state.get_mut(ctx.world);
+                                for (mut transform, enemy_id_comp) in query.iter_mut() {
+                                    if enemy_id_comp.0 == enemy_id {
+                                        transform.translation.x = new_x;
+                                        transform.translation.y = new_y;
+                                    }
+                                }
+                            })
+                            .await
+                        }
+                        Err(e) => {
+                            log::error!("Query `Position` component: {e}");
+                        }
                     }
                 }
             }
@@ -368,15 +375,15 @@ impl SpawnRacersCommand {
     }
 }
 
-// #[derive(Resource)]
-// struct DriveCommand(mpsc::Sender<()>);
+#[derive(Resource)]
+struct DriveCommand(mpsc::Sender<()>);
 
-// // TODO: derive macro?
-// impl DriveCommand {
-//     fn try_send(&self) -> Result<(), mpsc::error::TrySendError<()>> {
-//         self.0.try_send(())
-//     }
-// }
+// TODO: derive macro?
+impl DriveCommand {
+    fn try_send(&self) -> Result<(), mpsc::error::TrySendError<()>> {
+        self.0.try_send(())
+    }
+}
 
 #[derive(Resource)]
 struct UpdateVehicleCommand(mpsc::Sender<()>);
@@ -412,4 +419,17 @@ fn dojo_to_bevy_coordinate(dojo_x: f32, dojo_y: f32) -> (f32, f32) {
     // log::info!("bevy_x: {}, bevy_y: {}", bevy_x, bevy_y);
 
     (bevy_x, bevy_y)
+}
+
+async fn get_model_id(mut ctx: TaskContext) -> Option<FieldElement> {
+    ctx.run_on_main_thread(move |ctx| {
+        let mut state: SystemState<Query<&Model, With<Car>>> = SystemState::new(ctx.world);
+        let query = state.get(ctx.world);
+
+        match query.get_single() {
+            Ok(model) => Some(model.id),
+            Err(_) => None,
+        }
+    })
+    .await
 }

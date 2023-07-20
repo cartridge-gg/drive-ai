@@ -53,3 +53,4 @@ pub const DOJO_SYNC_INTERVAL: f32 = 0.1;
 pub const DOJO_GRID_WIDTH: f32 = 400.0;
 pub const DOJO_GRID_HEIGHT: f32 = 1000.0;
 pub const DOJO_ENEMIES_NB: u32 = 10;
+pub const MODEL_NAME: &str = "model";
