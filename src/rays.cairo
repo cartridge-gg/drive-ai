@@ -136,8 +136,7 @@ mod tests {
             *(ray_segments_1.at(0).theta),
             -16097821017949100000,
             'invalid ray_segments_1 0 theta',
-            // use custom_precision of 1e-04, lower because of "fast" trig functions
-            Option::Some(1844674407370950)
+            Option::Some(1844674407370950) // use custom_precision of 1e-04
         );
         assert_precise(
             *(ray_segments_1.at(0).cos_theta),
@@ -539,7 +538,56 @@ mod tests {
     #[test]
     #[available_gas(20000000)]
     fn test_raytrait_dist() {
-        // From vehicle 1 above, only rays 1 & 3 intersect enemy edges
+        // From vehicle 1 above, rays 0, 1, & 3 intersect enemy edges
+        // Ray 0
+        let ray_10 = Ray {
+            theta: FixedTrait::new(16097821017949100000, true),
+            cos_theta: FixedTrait::new(11857338529639100000, false),
+            sin_theta: FixedTrait::new(14131025791303100000, true),
+            p: Vec2Trait::new(
+                FixedTrait::new(1844674407370950000000, false),
+                FixedTrait::new(3689348814741900000000, false)
+            ),
+            q: Vec2Trait::new(
+                FixedTrait::new(274979461324515000000, true),
+                FixedTrait::new(5467949594187760000000, false)
+            ),
+        };
+
+        // ray_10 intersects only enemy 0 edges 1 & 2
+        // Enemy 0 edge 1 (vertical, left)
+        let p_01 = Vec2Trait::new(
+            FixedTrait::new(295147905179352000000, false),
+            FixedTrait::new(6124319032471550000000, false)
+        );
+        let q_01 = Vec2Trait::new(
+            FixedTrait::new(295147905179352000000, false),
+            FixedTrait::new(4943727411754150000000, false)
+        );
+        let distance_1001 = ray_10.dist(p_01, q_01);
+        assert_precise(
+            distance_1001,
+            2022763190974460000000,
+            'invalid RayTrait distance 1001',
+            Option::None(())
+        );
+        // Enemy 0 edge 2 (horizontal, bottom)
+        let p_02 = Vec2Trait::new(
+            FixedTrait::new(295147905179352000000, false),
+            FixedTrait::new(4943727411754150000000, false)
+        );
+        let q_02 = Vec2Trait::new(
+            FixedTrait::new(885443715538056000000, false),
+            FixedTrait::new(4943727411754150000000, false)
+        );
+        let distance_1002 = ray_10.dist(p_02, q_02);
+        assert_precise(
+            distance_1002,
+            1951466671275690000000,
+            'invalid RayTrait distance 1002',
+            Option::None(())
+        );
+
         // Ray 1
         let ray_11 = Ray {
             theta: FixedTrait::new(9658692610769470000, true),
