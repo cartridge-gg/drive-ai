@@ -61,7 +61,7 @@ fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
     };
 
     // Positions of only filtered (near) enemies
-    let filtered_enemies = filter_positions(vehicle, enemies);
+    let filtered_enemies = filter_positions(vehicle, enemies.span());
 
     // Distances of each sensor to its closest intersecting edge of all filtered enemies
     // (If sensor does not intersect an enemy edge, sensor's distance = 0)
@@ -115,7 +115,7 @@ fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
     Sensors { rays: TensorTrait::new(shape.span(), sensors.span(), extra) }
 }
 
-fn filter_positions(vehicle: Vehicle, mut positions: Array<Position>) -> Array<Position> {
+fn filter_positions(vehicle: Vehicle, mut positions: Span<Position>) -> Array<Position> {
     // Will hold near position values
     let mut near = ArrayTrait::new();
 
@@ -130,10 +130,10 @@ fn filter_positions(vehicle: Vehicle, mut positions: Array<Position>) -> Array<P
     loop {
         match positions.pop_front() {
             Option::Some(position) => {
-                if (FixedTrait::new(position.x, false) - vehicle.position.x).abs() <= filter_dist_x
-                    && (FixedTrait::new(position.y, false) - vehicle.position.y)
+                if (FixedTrait::new(*position.x, false) - vehicle.position.x).abs() <= filter_dist_x
+                    && (FixedTrait::new(*position.y, false) - vehicle.position.y)
                         .abs() <= filter_dist_y {
-                    near.append(position);
+                    near.append(*position);
                 }
             },
             Option::None(_) => {
@@ -286,7 +286,7 @@ fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) {
 
     /// Enemy collision check
     // Get array of only near enemies positions
-    let mut filtered_enemies = filter_positions(vehicle, enemies);
+    let mut filtered_enemies = filter_positions(vehicle, enemies.span());
 
     // For each vehicle edge...
     let mut vehicle_edge_idx: usize = 0;
@@ -473,6 +473,26 @@ mod tests {
     #[test]
     #[available_gas(20000000)]
     fn test_filter_positions() {
+        // Spawn enemies, spaced evenly horizontally, a little ahead of vehicles at y = TWO_HUNDRED
+        // Use scaled u128 for Position
+        let enemies_nb = 4_u128;
+        // position.x of first enemy (center), so left edge is `CAR_WIDTH` (half-width) from left wall
+        let enemy_min_dist_from_wall = 2 * CAR_WIDTH;
+        let enemy_horiz_spacing = (GRID_WIDTH - 2 * enemy_min_dist_from_wall) / (enemies_nb - 1);
+
+        let mut enemies = ArrayTrait::<Position>::new();
+        let mut i = 0_u128;
+        loop {
+            if i == enemies_nb {
+                break ();
+            }
+            let x = enemy_min_dist_from_wall + i * enemy_horiz_spacing;
+            let y = THREE_HUNDRED;
+            enemies.append(Position { x: x, y: y });
+            i += 1;
+        };
+
+        // Vehicle 1
         let vehicle_1 = Vehicle {
             position: Vec2Trait::new(
                 FixedTrait::new(HUNDRED, false), FixedTrait::new(TWO_HUNDRED, false)
@@ -481,27 +501,9 @@ mod tests {
             speed: FixedTrait::new(0, false)
         };
 
-        // Spawn enemies, spaced evenly horizontally, a little ahead of vehicle
-        // Use scaled u128 for Position
-        let enemies_nb = 4_u128;
-        // position.x of first enemy (center), so left edge is `CAR_WIDTH` (half-width) from left wall
-        let enemy_min_dist_from_wall = 2 * CAR_WIDTH;
-        let enemy_horiz_spacing = (GRID_WIDTH - 2 * enemy_min_dist_from_wall) / (enemies_nb - 1);
+        let filtered_enemies_1 = filter_positions(vehicle_1, enemies.span());
 
-        let mut enemies_1 = ArrayTrait::<Position>::new();
-        let mut i = 0_u128;
-        loop {
-            if i == enemies_nb {
-                break ();
-            }
-            let x = enemy_min_dist_from_wall + i * enemy_horiz_spacing;
-            let y = THREE_HUNDRED;
-            enemies_1.append(Position { x: x, y: y });
-            i += 1;
-        };
-
-        // values calculated in spreadsheet "drive_ai tests"
-        let filtered_enemies_1 = filter_positions(vehicle_1, enemies_1);
+        // Values calculated in spreadsheet "drive_ai tests"
         assert(filtered_enemies_1.len() == 3_usize, 'invalid filtered_enemies_1');
         assert_precise_u128(
             *(filtered_enemies_1.at(0).x),
@@ -540,6 +542,7 @@ mod tests {
             Option::None(())
         );
 
+        // Vehicle 2
         let vehicle_2 = Vehicle {
             position: Vec2Trait::new(
                 FixedTrait::new(THREE_FIFTY, false), FixedTrait::new(TWO_HUNDRED, false)
@@ -548,20 +551,7 @@ mod tests {
             speed: FixedTrait::new(0, false)
         };
 
-        // Could not figure out how to reuse enemies_1 here, not copyable
-        let mut enemies_2 = ArrayTrait::<Position>::new();
-        i = 0_u128;
-        loop {
-            if i == enemies_nb {
-                break ();
-            }
-            let x = enemy_min_dist_from_wall + i * enemy_horiz_spacing;
-            let y = THREE_HUNDRED;
-            enemies_2.append(Position { x: x, y: y });
-            i += 1;
-        };
-
-        let filtered_enemies_2 = filter_positions(vehicle_2, enemies_2);
+        let filtered_enemies_2 = filter_positions(vehicle_2, enemies.span());
         assert(filtered_enemies_2.len() == 2_usize, 'invalid filtered_enemies_2');
         assert_precise_u128(
             *(filtered_enemies_2.at(0).x),
@@ -592,6 +582,25 @@ mod tests {
     #[test]
     #[available_gas(200000000)] // Made gas 10x 
     fn test_closest_position() {
+        // Spawn enemies, spaced evenly horizontally, a little ahead of vehicles at y = TWO_HUNDRED
+        // Use scaled u128 for Position
+        let enemies_nb = 4_u128;
+        // position.x of first enemy (center), so left edge is `CAR_WIDTH` (half-width) from left wall
+        let enemy_min_dist_from_wall = 2 * CAR_WIDTH;
+        let enemy_horiz_spacing = (GRID_WIDTH - 2 * enemy_min_dist_from_wall) / (enemies_nb - 1);
+
+        let mut enemies = ArrayTrait::<Position>::new();
+        let mut i = 0_u128;
+        loop {
+            if i == enemies_nb {
+                break ();
+            }
+            let x = enemy_min_dist_from_wall + i * enemy_horiz_spacing;
+            let y = THREE_HUNDRED;
+            enemies.append(Position { x: x, y: y });
+            i += 1;
+        };
+
         // Vehicle 1
         let vehicle_1 = Vehicle {
             position: Vec2Trait::new(
@@ -603,26 +612,7 @@ mod tests {
 
         let ray_segments_1 = RaysTrait::new(vehicle_1.position, vehicle_1.steer).segments;
 
-        // Spawn enemies, spaced evenly horizontally, a little ahead of vehicle
-        // Use scaled u128 for Position
-        let enemies_nb = 4_u128;
-        // position.x of first enemy (center), so left edge is `CAR_WIDTH` (half-width) from left wall
-        let enemy_min_dist_from_wall = 2 * CAR_WIDTH;
-        let enemy_horiz_spacing = (GRID_WIDTH - 2 * enemy_min_dist_from_wall) / (enemies_nb - 1);
-
-        let mut enemies_1 = ArrayTrait::<Position>::new();
-        let mut i = 0_u128;
-        loop {
-            if i == enemies_nb {
-                break ();
-            }
-            let x = enemy_min_dist_from_wall + i * enemy_horiz_spacing;
-            let y = THREE_HUNDRED;
-            enemies_1.append(Position { x: x, y: y });
-            i += 1;
-        };
-
-        let filtered_enemies_1 = filter_positions(vehicle_1, enemies_1);
+        let filtered_enemies_1 = filter_positions(vehicle_1, enemies.span());
 
         let mut enemy_sensors_1 = ArrayTrait::<Fixed>::new();
         let mut ray_idx = 0;
@@ -636,6 +626,7 @@ mod tests {
 
             ray_idx += 1;
         };
+
         // Values calculated in spreadsheet "drive_ai tests"
         // Asserted values need to be updated if/when NUM_RAYS = 5 is changed to new value
         assert(enemy_sensors_1.len() == NUM_RAYS, 'invalid enemy_sensors_1');
@@ -671,20 +662,7 @@ mod tests {
 
         let ray_segments_2 = RaysTrait::new(vehicle_2.position, vehicle_2.steer).segments;
 
-        // Could not figure out how to reuse enemies_1 here, not copyable
-        let mut enemies_2 = ArrayTrait::<Position>::new();
-        i = 0_u128;
-        loop {
-            if i == enemies_nb {
-                break ();
-            }
-            let x = enemy_min_dist_from_wall + i * enemy_horiz_spacing;
-            let y = THREE_HUNDRED;
-            enemies_2.append(Position { x: x, y: y });
-            i += 1;
-        };
-
-        let filtered_enemies_2 = filter_positions(vehicle_2, enemies_2);
+        let filtered_enemies_2 = filter_positions(vehicle_2, enemies.span());
 
         let mut enemy_sensors_2 = ArrayTrait::<Fixed>::new();
         ray_idx = 0;
