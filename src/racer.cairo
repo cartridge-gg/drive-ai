@@ -1,3 +1,4 @@
+use debug::PrintTrait;
 use traits::Into;
 use cubit::types::vec2::{Vec2, Vec2Trait};
 use cubit::types::fixed::{Fixed, FixedTrait, ONE_u128};
@@ -44,7 +45,7 @@ fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
     // All sensors (ray segments) for this vehicle
     let ray_segments = RaysTrait::new(vehicle.position, vehicle.steer).segments;
 
-    let filter_dist = FixedTrait::new(CAR_WIDTH + RAY_LENGTH, false); // Is this used?
+    // let filter_dist = FixedTrait::new(CAR_WIDTH + RAY_LENGTH, false); // Is this used here?
 
     // Distances of each sensor to wall, if wall is near
     let mut wall_sensors = match near_wall(vehicle) {
@@ -118,26 +119,22 @@ fn filter_positions(vehicle: Vehicle, mut positions: Array<Position>) -> Array<P
     // Will hold near position values
     let mut near = ArrayTrait::new();
 
-    let max_dist = FixedTrait::new(CAR_HEIGHT + RAY_LENGTH, false);
+    // Filter is rectangle around vehicle
+    // Includes only enemies w/position (center) inside rectangle
+    // Since enemy has zero rotation, max vehicle-to-enemy center-to-center distances:
+    // Max horizontal distance = RAY_LENGTH + enemy's CAR_WIDTH
+    let filter_dist_x = FixedTrait::new(RAY_LENGTH + CAR_WIDTH, false);
+    // Max vertical distance = RAY_LENGTH + enemy's CAR_HEIGHT
+    let filter_dist_y = FixedTrait::new(RAY_LENGTH + CAR_HEIGHT, false);
 
     loop {
         match positions.pop_front() {
             Option::Some(position) => {
-                // Option 1: Box - This may be cheaper than distance calculation in option 2, 
-                // but may include unneeded positions near corners of box, which could be more expensive
-                if (FixedTrait::new(position.x, false) - vehicle.position.x).abs() <= max_dist
-                    && (FixedTrait::new(position.y, false) - vehicle.position.y).abs() <= max_dist {
+                if (FixedTrait::new(position.x, false) - vehicle.position.x).abs() <= filter_dist_x
+                    && (FixedTrait::new(position.y, false) - vehicle.position.y)
+                        .abs() <= filter_dist_y {
                     near.append(position);
                 }
-            // // Option 2: Semi-circle - This may eliminate some positions near corners of box in option 2,
-            // // but may include (probably fewer) unneeded positions at the sides where max distance reduces 
-            // // to as low as CAR_WIDTH + RAY_LENGTH
-            // let delta_x_squared = pow_int(position.x - vehicle.position.x, 2, false);
-            // let delta_y_squared = pow_int(position.y - vehicle.position.y, 2, false);
-            // let distance = sqrt(delta_x_squared + delta_y_squared);
-            // if distance <= max_dist {
-            //     near.append(enemy_idx);
-            // }
             },
             Option::None(_) => {
                 break ();
@@ -441,44 +438,214 @@ mod drive {
 #[cfg(test)]
 mod tests {
     use debug::PrintTrait;
+    use array::{ArrayTrait, SpanTrait};
     use cubit::types::vec2::{Vec2, Vec2Trait};
     use cubit::types::fixed::{Fixed, FixedTrait, FixedPrint, ONE_u128};
     use cubit::math::trig;
     use cubit::test::helpers::assert_precise;
-    use array::SpanTrait;
-    use drive_ai::{Vehicle, VehicleTrait};
-    use drive_ai::rays::{RAY_LENGTH};
+    use drive_ai::vehicle::{Vehicle, VehicleTrait};
+    use drive_ai::rays::{Rays, RaysTrait, Ray, RayTrait, NUM_RAYS, RAY_LENGTH};
+    use drive_ai::enemy::{Position, PositionTrait};
+    use drive_ai::math::assert_precise_u128;
     use super::{
         compute_sensors, filter_positions, closest_position, near_wall, distances_to_wall,
         collision_check, Wall
     };
-    use super::{CAR_WIDTH, GRID_WIDTH};
+    use super::{GRID_HEIGHT, GRID_WIDTH, CAR_HEIGHT, CAR_WIDTH};
 
     const TWO: u128 = 36893488147419103232;
+    const FOUR: u128 = 73786976294838206464;
     const TEN: u128 = 184467440737095516160;
+    const FIFTY: u128 = 922337203685477580800;
     const HUNDRED: u128 = 1844674407370955161600;
+    const TWO_HUNDRED: u128 = 3689348814741910323200;
+    const THREE_HUNDRED: u128 = 5534023222112865484800;
+    const THREE_FIFTY: u128 = 6456360425798343065600;
+    const DEG_25_IN_RADS: u128 = 8048910508974580935;
 
     #[test]
     #[available_gas(20000000)]
-    fn test_compute_sensors() {
-        let vehicle = Vehicle {
-            position: Vec2Trait::new(
-                FixedTrait::new(CAR_WIDTH, false), FixedTrait::new(TEN, false)
-            ),
-            steer: FixedTrait::new(0, false),
-            speed: FixedTrait::new(0, false)
-        };
+    fn test_compute_sensors() {// let vehicle = Vehicle {
+    //     position: Vec2Trait::new(
+    //         FixedTrait::new(CAR_WIDTH, false), FixedTrait::new(TEN, false)
+    //     ),
+    //     steer: FixedTrait::new(0, false),
+    //     speed: FixedTrait::new(0, false)
+    // };
     }
 
     // TODO
     #[test]
     #[available_gas(20000000)]
-    fn test_filter_positions() {}
+    fn test_filter_positions() {
+        let vehicle_1 = Vehicle {
+            position: Vec2Trait::new(
+                FixedTrait::new(HUNDRED, false), FixedTrait::new(TWO_HUNDRED, false)
+            ),
+            steer: FixedTrait::new(0, false),
+            speed: FixedTrait::new(0, false)
+        };
+
+        // Spawn enemies, spaced evenly horizontally, a little ahead of vehicle
+        // Use scaled u128 for Position
+        let enemies_nb = FOUR;
+        // position.x of first enemy (center), so left edge is `CAR_WIDTH` (half-width) from left wall
+        let enemy_min_dist_from_wall = 2 * CAR_WIDTH;
+        let enemy_horiz_spacing = (GRID_WIDTH - 2 * enemy_min_dist_from_wall)
+            / (enemies_nb - ONE_u128);
+
+        let mut enemies_1 = ArrayTrait::<Position>::new();
+        let mut i = 0_u128;
+        loop {
+            if i == enemies_nb {
+                break ();
+            }
+            let x = enemy_min_dist_from_wall + i * enemy_horiz_spacing;
+            let y = THREE_HUNDRED;
+            enemies_1.append(Position { x: x, y: y });
+            i += ONE_u128;
+        };
+
+        // values calculated in spreadsheet "drive_ai tests"
+        let filtered_enemies_1 = filter_positions(vehicle_1, enemies_1);
+        assert(filtered_enemies_1.len() == 3_usize, 'invalid filtered_enemies_1');
+        assert_precise_u128(
+            *(filtered_enemies_1.at(0).x),
+            590295810358704000000,
+            'invalid filtered_enemies_1 0 x',
+            Option::None(())
+        );
+        assert_precise_u128(
+            *(filtered_enemies_1.at(0).y),
+            5534023222112850000000,
+            'invalid filtered_enemies_1 0 y',
+            Option::None(())
+        );
+        assert_precise_u128(
+            *(filtered_enemies_1.at(1).x),
+            2656331146614170000000,
+            'invalid filtered_enemies_1 1 x',
+            Option::None(())
+        );
+        assert_precise_u128(
+            *(filtered_enemies_1.at(1).y),
+            5534023222112850000000,
+            'invalid filtered_enemies_1 1 y',
+            Option::None(())
+        );
+        assert_precise_u128(
+            *(filtered_enemies_1.at(2).x),
+            4722366482869630000000,
+            'invalid filtered_enemies_1 2 x',
+            Option::None(())
+        );
+        assert_precise_u128(
+            *(filtered_enemies_1.at(2).y),
+            5534023222112850000000,
+            'invalid filtered_enemies_1 2 y',
+            Option::None(())
+        );
+
+        let vehicle_2 = Vehicle {
+            position: Vec2Trait::new(
+                FixedTrait::new(THREE_FIFTY, false), FixedTrait::new(TWO_HUNDRED, false)
+            ),
+            steer: FixedTrait::new(DEG_25_IN_RADS, false),
+            speed: FixedTrait::new(0, false)
+        };
+
+        // Could not figure out how to reuse enemies_1 here
+        let mut enemies_2 = ArrayTrait::<Position>::new();
+        i = 0_u128;
+        loop {
+            if i == enemies_nb {
+                break ();
+            }
+            let x = enemy_min_dist_from_wall + i * enemy_horiz_spacing;
+            let y = THREE_HUNDRED;
+            enemies_2.append(Position { x: x, y: y });
+            i += ONE_u128;
+        };
+
+        let filtered_enemies_2 = filter_positions(vehicle_2, enemies_2);
+        assert(filtered_enemies_2.len() == 2_usize, 'invalid filtered_enemies_2');
+        assert_precise_u128(
+            *(filtered_enemies_2.at(0).x),
+            4722366482869630000000,
+            'invalid filtered_enemies_2 0 x',
+            Option::None(())
+        );
+        assert_precise_u128(
+            *(filtered_enemies_2.at(0).y),
+            5534023222112850000000,
+            'invalid filtered_enemies_2 0 y',
+            Option::None(())
+        );
+        assert_precise_u128(
+            *(filtered_enemies_2.at(1).x),
+            6788401819125100000000,
+            'invalid filtered_enemies_2 1 x',
+            Option::None(())
+        );
+        assert_precise_u128(
+            *(filtered_enemies_2.at(1).y),
+            5534023222112850000000,
+            'invalid filtered_enemies_2 1 y',
+            Option::None(())
+        );
+    }
 
     // TODO
-    #[test]
-    #[available_gas(20000000)]
-    fn test_closest_position() {}
+    // #[test]
+    // #[available_gas(20000000)]
+    // fn test_closest_position() {
+    //     let vehicle_1 = Vehicle {
+    //         position: Vec2Trait::new(
+    //             FixedTrait::new(HUNDRED, false), FixedTrait::new(TWO_HUNDRED, false)
+    //         ),
+    //         steer: FixedTrait::new(0, false),
+    //         speed: FixedTrait::new(0, false)
+    //     };
+
+    //     // Spawn enemies, spaced evenly horizontally, a little ahead of vehicle
+    //     // Use scaled u128 for Position
+    //     let enemies_nb = FOUR;
+    //     // position.x of first enemy (center), so left edge is `CAR_WIDTH` (half-width) from left wall
+    //     let enemy_min_dist_from_wall = 2 * CAR_WIDTH;
+    //     let enemy_horiz_spacing = (GRID_WIDTH - 2 * enemy_min_dist_from_wall)
+    //         / (enemies_nb - ONE_u128);
+
+    //     let mut enemies_1 = ArrayTrait::<Position>::new();
+    //     let mut i = 0_u128;
+    //     loop {
+    //         if i == enemies_nb {
+    //             break ();
+    //         }
+    //         let x = enemy_min_dist_from_wall + i * enemy_horiz_spacing;
+    //         let y = THREE_HUNDRED;
+    //         enemies_1.append(Position { x: x, y: y });
+    //         i += ONE_u128;
+    //     };
+
+    //     let filtered_enemies_1 = filter_positions(vehicle_1, enemies_1);
+
+    //     // Distances of each sensor to its closest intersecting edge of all filtered enemies
+    //     // (If sensor does not intersect an enemy edge, sensor's distance = 0)
+    //     let mut enemy_sensors = ArrayTrait::<Fixed>::new();
+    //     let mut ray_idx = 0;
+    //     loop {
+    //         if (ray_idx == NUM_RAYS) {
+    //             break ();
+    //         }
+
+    //         enemy_sensors
+    //             .append(closest_position(ray_segments.at(ray_idx), filtered_enemies.span()));
+
+    //         ray_idx += 1;
+    //     };
+    // // Asserted values need to be updated if/when NUM_RAYS = 5 changes value
+    // values calculated in spreadsheet "drive_ai tests"
+    // }
 
     #[test]
     #[available_gas(20000000)]
@@ -518,7 +685,25 @@ mod tests {
     // TODO
     #[test]
     #[available_gas(20000000)]
-    fn test_distances_to_wall() {}
+    fn test_distances_to_wall() { //         
+    // All sensors (ray segments) for this vehicle
+    // let ray_segments = RaysTrait::new(vehicle.position, vehicle.steer).segments;
+
+    // let filter_dist = FixedTrait::new(CAR_WIDTH + RAY_LENGTH, false); // Is this used?
+
+    // // Distances of each sensor to wall, if wall is near
+    // let mut wall_sensors = match near_wall(vehicle) {
+    //     Wall::None(()) => {
+    //         ArrayTrait::<Fixed>::new()
+    //     },
+    //     Wall::Left(()) => {
+    //         distances_to_wall(vehicle, Wall::Left(()), ray_segments)
+    //     },
+    //     Wall::Right(()) => {
+    //         distances_to_wall(vehicle, Wall::Right(()), ray_segments)
+    //     },
+    // };
+    }
 
     // TODO
     #[test]

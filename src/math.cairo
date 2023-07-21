@@ -105,6 +105,28 @@ fn distance(p1: Vec2, p2: Vec2, q2: Vec2, cos_ray: Fixed, sin_ray: Fixed) -> Fix
     }
 }
 
+// similar to assert_precise which works for Fixed type only
+use debug::PrintTrait;
+const DEFAULT_PRECISION: u128 = 1844674407370; // 1e-7
+// To use `DEFAULT_PRECISION`, final arg is: `Option::None(())`.
+// To use `custom_precision` of 184467440737_u128: `Option::Some(184467440737_u128)`.
+fn assert_precise_u128(result: u128, expected: u128, msg: felt252, custom_precision: Option<u128>) {
+    let precision = match custom_precision {
+        Option::Some(val) => val,
+        Option::None(_) => DEFAULT_PRECISION,
+    };
+
+    let mut diff = result - expected;
+    if result < expected {
+        diff = expected - result;
+    }
+
+    if (diff > precision) {
+        result.print();
+        assert(diff <= precision, msg);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use traits::Into;
