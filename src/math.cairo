@@ -248,7 +248,7 @@ mod tests {
         let mut p2 = Vec2Trait::new(FixedTrait::new(TEN, false), FixedTrait::new(FORTY, false));
         let mut q2 = Vec2Trait::new(FixedTrait::new(THIRTY, false), FixedTrait::new(0, false));
         let mut intersect = intersects(p1, q1, p2, q2);
-        assert(intersect == true, 'invalid intersection');
+        assert(intersect, 'invalid intersection');
 
         // Switch only p1,q1
         p1 = Vec2Trait::new(FixedTrait::new(0, false), FixedTrait::new(TEN, false));
@@ -256,7 +256,7 @@ mod tests {
         p2 = Vec2Trait::new(FixedTrait::new(TEN, false), FixedTrait::new(FORTY, false));
         q2 = Vec2Trait::new(FixedTrait::new(THIRTY, false), FixedTrait::new(0, false));
         intersect = intersects(p1, q1, p2, q2);
-        assert(intersect == true, 'invalid intersection');
+        assert(intersect, 'invalid intersection');
 
         // Switch only p2,q2
         p1 = Vec2Trait::new(FixedTrait::new(FORTY, false), FixedTrait::new(THIRTY, false));
@@ -264,7 +264,7 @@ mod tests {
         p2 = Vec2Trait::new(FixedTrait::new(THIRTY, false), FixedTrait::new(0, false));
         q2 = Vec2Trait::new(FixedTrait::new(TEN, false), FixedTrait::new(FORTY, false));
         intersect = intersects(p1, q1, p2, q2);
-        assert(intersect == true, 'invalid intersection');
+        assert(intersect, 'invalid intersection');
 
         // Switch both p1,q1 and p2,q2
         p1 = Vec2Trait::new(FixedTrait::new(0, false), FixedTrait::new(TEN, false));
@@ -272,19 +272,19 @@ mod tests {
         p2 = Vec2Trait::new(FixedTrait::new(THIRTY, false), FixedTrait::new(0, false));
         q2 = Vec2Trait::new(FixedTrait::new(TEN, false), FixedTrait::new(FORTY, false));
         intersect = intersects(p1, q1, p2, q2);
-        assert(intersect == true, 'invalid intersection');
+        assert(intersect, 'invalid intersection');
 
         // Now shorter line 2 so no intersection
         q2 = Vec2Trait::new(FixedTrait::new(TEN, false), FixedTrait::new(TEN, false));
         intersect = intersects(p1, q1, p2, q2);
-        assert(intersect == false, 'invalid non-intersection');
+        assert(!intersect, 'invalid non-intersection');
 
         // Colinear segments
         q1 = Vec2Trait::new(FixedTrait::new(THIRTY, false), FixedTrait::new(TEN, false));
         p2 = Vec2Trait::new(FixedTrait::new(TWENTY, false), FixedTrait::new(TEN, false));
         q2 = Vec2Trait::new(FixedTrait::new(FORTY, false), FixedTrait::new(TEN, false));
         intersect = intersects(p1, q1, p2, q2);
-        assert(intersect == true, 'invalid colinear intersection');
+        assert(intersect, 'invalid colinear intersection');
     }
 
     #[test]

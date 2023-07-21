@@ -321,4 +321,120 @@ mod tests {
             Option::Some(184467440737095000) // 1e-02
         );
     }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_raytrait_intersects() {
+        // From vehicle 2 above, only ray 2 intersects enemy edges
+        let ray_2_2 = Ray {
+            theta: FixedTrait::new(8048910508974560000, false),
+            cos_theta: FixedTrait::new(16718427799475100000, false),
+            sin_theta: FixedTrait::new(7795930915206660000, false),
+            p: Vec2Trait::new(
+                FixedTrait::new(6456360425798330000000, false),
+                FixedTrait::new(3689348814741900000000, false)
+            ),
+            q: Vec2Trait::new(
+                FixedTrait::new(7625750063079320000000, false),
+                FixedTrait::new(6197112984663160000000, false)
+            ),
+        };
+
+        // ray_2_2 intersects only edges 2 & 3 of enemy 3
+        // Enemy 3 edge 0 (horizontal, top)
+        let p_3_0 = Vec2Trait::new(
+            FixedTrait::new(6493253913945740000000, false),
+            FixedTrait::new(6124319032471550000000, false)
+        );
+        let q_3_0 = Vec2Trait::new(
+            FixedTrait::new(7083549724304450000000, false),
+            FixedTrait::new(6124319032471550000000, false)
+        );
+        let intersects = ray_2_2.intersects(p_3_0, q_3_0);
+        assert(!intersects, 'invalid RayTrait intersects');
+
+        // Enemy 3 edge 1 (vertical, left)
+        let p_3_1 = Vec2Trait::new(
+            FixedTrait::new(6493253913945740000000, false),
+            FixedTrait::new(4943727411754150000000, false)
+        );
+        let q_3_1 = Vec2Trait::new(
+            FixedTrait::new(6493253913945740000000, false),
+            FixedTrait::new(6124319032471550000000, false)
+        );
+        let intersects = ray_2_2.intersects(p_3_1, q_3_1);
+        assert(!intersects, 'invalid RayTrait intersects');
+
+        // Enemy 3 edge 2 (horizontal, bottom)
+        let p_3_2 = Vec2Trait::new(
+            FixedTrait::new(6493253913945740000000, false),
+            FixedTrait::new(4943727411754150000000, false)
+        );
+        let q_3_2 = Vec2Trait::new(
+            FixedTrait::new(7083549724304450000000, false),
+            FixedTrait::new(4943727411754150000000, false)
+        );
+        let intersects = ray_2_2.intersects(p_3_2, q_3_2);
+        assert(intersects, 'invalid RayTrait intersects');
+
+        // Enemy 3 edge 3 (vertical, right)
+        let p_3_3 = Vec2Trait::new(
+            FixedTrait::new(7083549724304450000000, false),
+            FixedTrait::new(4943727411754150000000, false)
+        );
+        let q_3_3 = Vec2Trait::new(
+            FixedTrait::new(7083549724304450000000, false),
+            FixedTrait::new(6124319032471550000000, false)
+        );
+        let intersects = ray_2_2.intersects(p_3_3, q_3_3);
+        assert(intersects, 'invalid RayTrait intersects');
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_raytrait_dist() {
+        // From vehicle 2 above, only ray 2 intersects enemy edges
+        let ray_2_2 = Ray {
+            theta: FixedTrait::new(8048910508974560000, false),
+            cos_theta: FixedTrait::new(16718427799475100000, false),
+            sin_theta: FixedTrait::new(7795930915206660000, false),
+            p: Vec2Trait::new(
+                FixedTrait::new(6456360425798330000000, false),
+                FixedTrait::new(3689348814741900000000, false)
+            ),
+            q: Vec2Trait::new(
+                FixedTrait::new(7625750063079320000000, false),
+                FixedTrait::new(6197112984663160000000, false)
+            ),
+        };
+
+        // ray_2_2 intersects only edges 2 & 3 of enemy 3
+        // Enemy 3 edge 2 (horizontal, bottom)
+        let p_3_2 = Vec2Trait::new(
+            FixedTrait::new(6493253913945740000000, false),
+            FixedTrait::new(4943727411754150000000, false)
+        );
+        let q_3_2 = Vec2Trait::new(
+            FixedTrait::new(7083549724304450000000, false),
+            FixedTrait::new(4943727411754150000000, false)
+        );
+        let distance_2 = ray_2_2.dist(p_3_2, q_3_2);
+        assert_precise(
+            distance_2, 1384053645962460000000, 'invalid RayTrait distance 2', Option::None(())
+        );
+
+        // Enemy 3 edge 3 (vertical, right)
+        let p_3_3 = Vec2Trait::new(
+            FixedTrait::new(7083549724304450000000, false),
+            FixedTrait::new(4943727411754150000000, false)
+        );
+        let q_3_3 = Vec2Trait::new(
+            FixedTrait::new(7083549724304450000000, false),
+            FixedTrait::new(6124319032471550000000, false)
+        );
+        let distance_3 = ray_2_2.dist(p_3_3, q_3_3);
+        assert_precise(
+            distance_3, 1484056311061490000000, 'invalid RayTrait distance 3', Option::None(())
+        );
+    }
 }
