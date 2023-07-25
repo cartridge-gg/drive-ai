@@ -105,9 +105,9 @@ fn distance(p1: Vec2, p2: Vec2, q2: Vec2, cos_ray: Fixed, sin_ray: Fixed) -> Fix
     }
 }
 
-// similar to assert_precise which works for Fixed type only
 use debug::PrintTrait;
 const DEFAULT_PRECISION: u128 = 1844674407370; // 1e-7
+// Similar to cubit's assert_precise which works for Fixed type only, but here for u128
 // To use `DEFAULT_PRECISION`, final arg is: `Option::None(())`.
 // To use `custom_precision` of 184467440737_u128: `Option::Some(184467440737_u128)`.
 fn assert_precise_u128(result: u128, expected: u128, msg: felt252, custom_precision: Option<u128>) {
@@ -116,14 +116,18 @@ fn assert_precise_u128(result: u128, expected: u128, msg: felt252, custom_precis
         Option::None(_) => DEFAULT_PRECISION,
     };
 
-    let mut diff = result - expected;
     if result < expected {
-        diff = expected - result;
-    }
-
-    if (diff > precision) {
-        result.print();
-        assert(diff <= precision, msg);
+        let diff = expected - result;
+        if (diff > precision) {
+            result.print();
+            assert(diff <= precision, msg);
+        }
+    } else {
+        let diff = result - expected;
+        if (diff > precision) {
+            result.print();
+            assert(diff <= precision, msg);
+        }
     }
 }
 
@@ -184,17 +188,17 @@ mod tests {
 
         let mut vertices = vertices(position, width, height, theta);
 
-        assert_precise(*(vertices.at(0).x), TWENTY.into(), 'invalid vertex_0', Option::None(()));
-        assert_precise(*(vertices.at(0).y), FORTY.into(), 'invalid vertex_0', Option::None(()));
+        assert_precise(*vertices.at(0).x, TWENTY.into(), 'invalid vertex_0', Option::None(()));
+        assert_precise(*vertices.at(0).y, FORTY.into(), 'invalid vertex_0', Option::None(()));
 
-        assert_precise(*(vertices.at(1).x), 0, 'invalid vertex_1', Option::None(()));
-        assert_precise(*(vertices.at(1).y), FORTY.into(), 'invalid vertex_1', Option::None(()));
+        assert_precise(*vertices.at(1).x, 0, 'invalid vertex_1', Option::None(()));
+        assert_precise(*vertices.at(1).y, FORTY.into(), 'invalid vertex_1', Option::None(()));
 
-        assert_precise(*(vertices.at(2).x), 0, 'invalid vertex_2', Option::None(()));
-        assert_precise(*(vertices.at(2).y), 0, 'invalid vertex_2', Option::None(()));
+        assert_precise(*vertices.at(2).x, 0, 'invalid vertex_2', Option::None(()));
+        assert_precise(*vertices.at(2).y, 0, 'invalid vertex_2', Option::None(()));
 
-        assert_precise(*(vertices.at(3).x), TWENTY.into(), 'invalid vertex_3', Option::None(()));
-        assert_precise(*(vertices.at(3).y), 0, 'invalid vertex_3', Option::None(()));
+        assert_precise(*vertices.at(3).x, TWENTY.into(), 'invalid vertex_3', Option::None(()));
+        assert_precise(*vertices.at(3).y, 0, 'invalid vertex_3', Option::None(()));
 
         let position = Vec2Trait::new(FixedTrait::new(TEN, false), FixedTrait::new(TWENTY, false));
         let width = FixedTrait::new(TEN, false);
@@ -205,37 +209,34 @@ mod tests {
 
         // x: ~8.66025403784439, y: ~42.32050807568880
         assert_precise(
-            *(vertices.at(0).x), 159753090305067335160, 'invalid rotated vertex_0', Option::None(())
+            *vertices.at(0).x, 159753090305067335160, 'invalid rotated vertex_0', Option::None(())
         );
         assert_precise(
-            *(vertices.at(0).y), 780673828410437532220, 'invalid rotated vertex_0', Option::None(())
+            *vertices.at(0).y, 780673828410437532220, 'invalid rotated vertex_0', Option::None(())
         );
 
         // x: ~-8.66025403784439, y: ~32.32050807568880
         assert_precise(
-            *(vertices.at(1).x),
-            -159752327071118592360,
-            'invalid rotated vertex_1',
-            Option::None(())
+            *vertices.at(1).x, -159752327071118592360, 'invalid rotated vertex_1', Option::None(())
         );
         assert_precise(
-            *(vertices.at(1).y), 596206769290316387460, 'invalid rotated vertex_1', Option::None(())
+            *vertices.at(1).y, 596206769290316387460, 'invalid rotated vertex_1', Option::None(())
         );
 
         // x: ~11.33974596215560, y: ~-2.32050807568877
         assert_precise(
-            *(vertices.at(2).x), 209181791169123697160, 'invalid rotated vertex_2', Option::None(())
+            *vertices.at(2).x, 209181791169123697160, 'invalid rotated vertex_2', Option::None(())
         );
         assert_precise(
-            *(vertices.at(2).y), -42804065462055467580, 'invalid rotated vertex_2', Option::None(())
+            *vertices.at(2).y, -42804065462055467580, 'invalid rotated vertex_2', Option::None(())
         );
 
         // x: ~28.66025403784440, y: ~7.67949192431123
         assert_precise(
-            *(vertices.at(3).x), 528687208545309624680, 'invalid rotated vertex_3', Option::None(())
+            *vertices.at(3).x, 528687208545309624680, 'invalid rotated vertex_3', Option::None(())
         );
         assert_precise(
-            *(vertices.at(3).y), 141662993658065677180, 'invalid rotated vertex_3', Option::None(())
+            *vertices.at(3).y, 141662993658065677180, 'invalid rotated vertex_3', Option::None(())
         );
     }
 
