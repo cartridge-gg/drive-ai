@@ -45,26 +45,26 @@ fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
     // All sensors (ray segments) for this vehicle
     let ray_segments = RaysTrait::new(vehicle.position, vehicle.steer).segments;
 
-    // let filter_dist = FixedTrait::new(CAR_WIDTH + RAY_LENGTH, false); // Is this used here?
-
-    // Distances of each sensor to wall, if wall is near
+    // Distances along each sensor ray to near wall
+    // If ray does not intersect wall, sensor's distance is 0
+    // If no near wall, array is empty
     let mut wall_sensors = match near_wall(vehicle) {
         Wall::None(()) => {
             ArrayTrait::<Fixed>::new()
         },
         Wall::Left(()) => {
-            distances_to_wall(vehicle, Wall::Left(()), ray_segments)
+            distances_to_wall(Wall::Left(()), ray_segments)
         },
         Wall::Right(()) => {
-            distances_to_wall(vehicle, Wall::Right(()), ray_segments)
+            distances_to_wall(Wall::Right(()), ray_segments)
         },
     };
 
     // Positions of only filtered (near) enemies
     let filtered_enemies = filter_positions(vehicle, enemies.span());
 
-    // Distances of each sensor to its closest intersecting edge of all filtered enemies
-    // (If sensor does not intersect an enemy edge, sensor's distance = 0)
+    // Distances along each sensor ray to nearest intersection of ray w/edge of filtered enemy
+    // If sensor does not intersect an enemy edge, sensor's distance = 0
     let mut enemy_sensors = ArrayTrait::<Fixed>::new();
     let mut ray_idx = 0;
     loop {
@@ -203,39 +203,60 @@ fn near_wall(vehicle: Vehicle) -> Wall {
     return Wall::None(());
 }
 
-fn distances_to_wall(vehicle: Vehicle, near_wall: Wall, mut rays: Span<Ray>) -> Array<Fixed> {
+// Distances along each sensor ray to near wall
+// If ray does not intersect wall, sensor's distance is 0
+// If no near wall, array is empty
+fn distances_to_wall(near_wall: Wall, mut rays: Span<Ray>) -> Array<Fixed> {
     let mut sensors = ArrayTrait::<Fixed>::new();
 
-    let ray_length = FixedTrait::new(RAY_LENGTH, false);
-
-    let wall_position_x = match near_wall {
+    match near_wall {
         Wall::None(()) => {
             return sensors;
         },
-        Wall::Left(()) => FixedTrait::new(0, false),
-        Wall::Right(()) => FixedTrait::new(GRID_WIDTH, false),
+        Wall::Left(()) => {
+            // Wall endpoints
+            let p2 = Vec2 { x: FixedTrait::new(0, false), y: FixedTrait::new(0, false) };
+            let q2 = Vec2 { x: FixedTrait::new(0, false), y: FixedTrait::new(GRID_HEIGHT, false) };
+            loop {
+                match rays.pop_front() {
+                    Option::Some(ray) => {
+                        // If ray.q.x is negative or zero, ray intersects with Left wall
+                        //     Cheaper than ray.intersects(p2, q2)?
+                        if *(ray.q.x.sign) || *(ray.q.x.mag) == 0_u128 {
+                            sensors.append(ray.dist(p2, q2));
+                        } else {
+                            sensors.append(FixedTrait::new(0, false));
+                        }
+                    },
+                    Option::None(_) => {
+                        break ();
+                    }
+                };
+            };
+        },
+        Wall::Right(()) => {
+            // Wall endpoints
+            let p2 = Vec2 { x: FixedTrait::new(GRID_WIDTH, false), y: FixedTrait::new(0, false) };
+            let q2 = Vec2 {
+                x: FixedTrait::new(GRID_WIDTH, false), y: FixedTrait::new(GRID_HEIGHT, false)
+            };
+            loop {
+                match rays.pop_front() {
+                    Option::Some(ray) => {
+                        // If ray.q.x is >= GRID_WIDTH, ray intersects with Right wall
+                        if !*(ray.q.x.sign) && *(ray.q.x.mag) >= GRID_WIDTH {
+                            sensors.append(ray.dist(p2, q2));
+                        } else {
+                            sensors.append(FixedTrait::new(0, false));
+                        }
+                    },
+                    Option::None(_) => {
+                        break ();
+                    }
+                };
+            };
+        },
     };
-
-    let p2 = Vec2 { x: wall_position_x, y: FixedTrait::new(0, false) };
-    let q2 = Vec2 { x: wall_position_x, y: FixedTrait::new(GRID_HEIGHT, false) };
-
-    // TODO: We can exit early on some conditions here, since, for example, if the left most ray math::intersects, the right most can't
-    loop {
-        match rays.pop_front() {
-            Option::Some(ray) => {
-                // Endpoints of Ray
-                if ray.intersects(p2, q2) {
-                    sensors.append(ray.dist(p2, q2));
-                } else {
-                    sensors.append(FixedTrait::new(0, false));
-                }
-            },
-            Option::None(_) => {
-                break ();
-            }
-        };
-    };
-
     sensors
 }
 
@@ -441,7 +462,7 @@ mod tests {
     use cubit::math::trig;
     use cubit::test::helpers::assert_precise;
     use drive_ai::vehicle::{Vehicle, VehicleTrait};
-    use drive_ai::rays::{Rays, RaysTrait, Ray, RayTrait, NUM_RAYS, RAY_LENGTH};
+    use drive_ai::rays::{Rays, RaysTrait, Ray, RayTrait, RAY_LENGTH};
     use drive_ai::enemy::{Position, PositionTrait};
     use drive_ai::math::assert_precise_u128;
     use super::{
@@ -450,6 +471,7 @@ mod tests {
     };
     use super::{GRID_HEIGHT, GRID_WIDTH, CAR_HEIGHT, CAR_WIDTH};
 
+    const NUM_RAYS: usize = 5; // Asserted values below are only for NUM_RAYS = 5
     const TWO: u128 = 36893488147419103232;
     const TEN: u128 = 184467440737095516160;
     const FIFTY: u128 = 922337203685477580800;
@@ -461,14 +483,7 @@ mod tests {
 
     #[test]
     #[available_gas(20000000)]
-    fn test_compute_sensors() { // let vehicle = Vehicle {
-    //     position: Vec2Trait::new(
-    //         FixedTrait::new(CAR_WIDTH, false), FixedTrait::new(TEN, false)
-    //     ),
-    //     steer: FixedTrait::new(0, false),
-    //     speed: FixedTrait::new(0, false)
-    // };
-    }
+    fn test_compute_sensors() {}
 
     #[test]
     #[available_gas(20000000)]
@@ -628,7 +643,7 @@ mod tests {
         };
 
         // Values calculated in spreadsheet "drive_ai tests"
-        // Asserted values need to be updated if/when NUM_RAYS = 5 is changed to new value
+        // Asserted values below are only for NUM_RAYS = 5
         assert(enemy_sensors_1.len() == NUM_RAYS, 'invalid enemy_sensors_1');
         assert_precise(
             *(enemy_sensors_1.at(0)),
@@ -724,27 +739,92 @@ mod tests {
         assert(right_wall == Wall::Right(()), 'invalid near right wall');
     }
 
-    // TODO
     #[test]
     #[available_gas(20000000)]
-    fn test_distances_to_wall() { //         
-    // All sensors (ray segments) for this vehicle
-    // let ray_segments = RaysTrait::new(vehicle.position, vehicle.steer).segments;
+    fn test_distances_to_wall() {
+        // Vehicle 1 to test Wall::Left(())
+        let vehicle_1 = Vehicle {
+            position: Vec2Trait::new(
+                FixedTrait::new(HUNDRED, false), FixedTrait::new(TWO_HUNDRED, false)
+            ),
+            steer: FixedTrait::new(0, false),
+            speed: FixedTrait::new(0, false)
+        };
+        let near_wall_1 = near_wall(vehicle_1);
+        assert(near_wall_1 == Wall::Left(()), 'invalid near_wall_1');
 
-    // let filter_dist = FixedTrait::new(CAR_WIDTH + RAY_LENGTH, false); // Is this used?
+        let ray_segments_1 = RaysTrait::new(vehicle_1.position, vehicle_1.steer).segments;
+        let distances_to_wall_1 = distances_to_wall(near_wall_1, ray_segments_1);
 
-    // // Distances of each sensor to wall, if wall is near
-    // let mut wall_sensors = match near_wall(vehicle) {
-    //     Wall::None(()) => {
-    //         ArrayTrait::<Fixed>::new()
-    //     },
-    //     Wall::Left(()) => {
-    //         distances_to_wall(vehicle, Wall::Left(()), ray_segments)
-    //     },
-    //     Wall::Right(()) => {
-    //         distances_to_wall(vehicle, Wall::Right(()), ray_segments)
-    //     },
-    // };
+        // Values calculated in spreadsheet "drive_ai tests"
+        // Asserted values below are only for NUM_RAYS = 5
+        // Vehicle 1 only ray 0 intersects with Left wall
+        assert(distances_to_wall_1.len() == NUM_RAYS, 'invalid distances_to_wall_1');
+        assert_precise(
+            *(distances_to_wall_1.at(0)),
+            2408051417826740000000,
+            'invalid v1 dist to wall ray 0',
+            Option::Some(184467440737095000) // 1e-02
+        );
+        assert(*(distances_to_wall_1.at(1).mag) == 0, 'invalid v1 dist to wall ray 1');
+        assert(*(distances_to_wall_1.at(2).mag) == 0, 'invalid v1 dist to wall ray 2');
+        assert(*(distances_to_wall_1.at(3).mag) == 0, 'invalid v1 dist to wall ray 3');
+        assert(*(distances_to_wall_1.at(4).mag) == 0, 'invalid v1 dist to wall ray 4');
+
+        // Vehicle 2 to test Wall::Right(())
+        let vehicle_2 = Vehicle {
+            position: Vec2Trait::new(
+                FixedTrait::new(THREE_FIFTY, false), FixedTrait::new(TWO_HUNDRED, false)
+            ),
+            steer: FixedTrait::new(DEG_25_IN_RADS, false),
+            speed: FixedTrait::new(0, false)
+        };
+
+        let near_wall_2 = near_wall(vehicle_2);
+        assert(near_wall_2 == Wall::Right(()), 'invalid near_wall_2');
+
+        let ray_segments_2 = RaysTrait::new(vehicle_2.position, vehicle_2.steer).segments;
+        let distances_to_wall_2 = distances_to_wall(near_wall_2, ray_segments_2);
+
+        // Vehicle 2 rays 2,3,4 each intersect with Right wall
+        assert(distances_to_wall_2.len() == NUM_RAYS, 'invalid distances_to_wall_2');
+        assert(*(distances_to_wall_2.at(0).mag) == 0, 'invalid v2 dist to wall ray 0');
+        assert(*(distances_to_wall_2.at(1).mag) == 0, 'invalid v2 dist to wall ray 1');
+        assert_precise(
+            *(distances_to_wall_2.at(2)),
+            2182435751561020000000,
+            'invalid v2 dist to wall ray 2',
+            Option::Some(184467440737095000) // 1e-02
+        );
+        assert_precise(
+            *(distances_to_wall_2.at(3)),
+            1125965820528530000000,
+            'invalid v2 dist to wall ray 3',
+            Option::Some(184467440737095000) // 1e-02
+        );
+        assert_precise(
+            *(distances_to_wall_2.at(4)),
+            954873737281615000000,
+            'invalid v2 dist to wall ray 4',
+            Option::Some(184467440737095000) // 1e-02
+        );
+
+        // Vehicle 3 to test Wall::None(())
+        let vehicle_3 = Vehicle {
+            position: Vec2Trait::new(
+                FixedTrait::new(TWO_HUNDRED, false), FixedTrait::new(TWO_HUNDRED, false)
+            ),
+            steer: FixedTrait::new(0, false),
+            speed: FixedTrait::new(0, false)
+        };
+
+        let near_wall_3 = near_wall(vehicle_3);
+        assert(near_wall_3 == Wall::None(()), 'invalid near_wall_3');
+
+        let ray_segments_3 = RaysTrait::new(vehicle_3.position, vehicle_3.steer).segments;
+        let distances_to_wall_3 = distances_to_wall(near_wall_3, ray_segments_3);
+
+        assert(distances_to_wall_3.len() == 0, 'invalid distances_to_wall_3');
     }
 
     // TODO

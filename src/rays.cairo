@@ -103,8 +103,9 @@ mod tests {
         collision_check, Wall
     };
     use drive_ai::racer::{GRID_HEIGHT, GRID_WIDTH, CAR_HEIGHT, CAR_WIDTH};
-    use super::{Rays, RaysTrait, Ray, RayTrait, NUM_RAYS, RAY_LENGTH};
+    use super::{Rays, RaysTrait, Ray, RayTrait, RAY_LENGTH};
 
+    const NUM_RAYS: usize = 5; // Asserted values below are only for NUM_RAYS = 5
     const TWO: u128 = 36893488147419103232;
     const FOUR: u128 = 73786976294838206464;
     const TEN: u128 = 184467440737095516160;
@@ -129,8 +130,8 @@ mod tests {
         let ray_segments_1 = RaysTrait::new(vehicle_1.position, vehicle_1.steer).segments;
         assert(ray_segments_1.len() == NUM_RAYS, 'invalid ray_segments_1');
 
-        // values calculated in spreadsheet "drive_ai tests"
-        // Asserted values need to be updated if/when NUM_RAYS = 5 is changed to new value
+        // Values calculated in spreadsheet "drive_ai tests"
+        // Asserted values below are only for NUM_RAYS = 5
         // ray_segments_1.at(0)
         assert_precise(
             *(ray_segments_1.at(0).theta),
@@ -539,7 +540,7 @@ mod tests {
     #[available_gas(20000000)]
     fn test_raytrait_dist() {
         // From vehicle 1 above, rays 0, 1, & 3 intersect enemy edges
-        // Ray 0
+        // Vehicle 1 ray 0
         let ray_10 = Ray {
             theta: FixedTrait::new(16097821017949100000, true),
             cos_theta: FixedTrait::new(11857338529639100000, false),
@@ -588,7 +589,7 @@ mod tests {
             Option::None(())
         );
 
-        // Ray 1
+        // Vehicle 1 ray 1
         let ray_11 = Ray {
             theta: FixedTrait::new(9658692610769470000, true),
             cos_theta: FixedTrait::new(15975348984942500000, false),
@@ -621,7 +622,7 @@ mod tests {
             Option::None(())
         );
 
-        // Ray 3
+        // Vehicle 1 ray 3
         let ray_13 = Ray {
             theta: FixedTrait::new(9658692610769470000, false),
             cos_theta: FixedTrait::new(15975348984942500000, false),
@@ -672,6 +673,7 @@ mod tests {
         );
 
         // From vehicle 2 above, only ray 2 intersects enemy edges
+        // Vehicle 2 ray 2
         let ray_22 = Ray {
             theta: FixedTrait::new(8048910508974560000, false),
             cos_theta: FixedTrait::new(16718427799475100000, false),

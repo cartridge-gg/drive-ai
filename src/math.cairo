@@ -89,14 +89,14 @@ fn orientation(a: Vec2, b: Vec2, c: Vec2) -> u8 {
 
 // Finds distance from p1 to intersection of segments p1q1 and p2q2
 fn distance(p1: Vec2, p2: Vec2, q2: Vec2, cos_ray: Fixed, sin_ray: Fixed) -> Fixed {
-    // All enemy edges are either vertical or horizontal
+    // All enemy edges are either vertical or horizontal; all walls are vertical
     if p2.y == q2.y { // Enemy edge is horizontal
         if p2.y == p1.y { // Ray is colinear with enemy edge
             return min((p2.x - p1.x).abs(), (q2.x - p1.x).abs());
         } else {
             return ((p2.y - p1.y) / cos_ray).abs();
         }
-    } else { // Enemy edge is vertical
+    } else { // Enemy edge or wall is vertical
         if p2.x == p1.x { // Ray is colinear with enemy edge
             return min((p2.y - p1.y).abs(), (q2.y - p1.y).abs());
         } else {
