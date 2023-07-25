@@ -98,11 +98,6 @@ mod tests {
     use cubit::test::helpers::assert_precise;
     use drive_ai::vehicle::{Vehicle, VehicleTrait};
     use drive_ai::enemy::{Position, PositionTrait};
-    use drive_ai::racer::{
-        compute_sensors, filter_positions, closest_position, near_wall, distances_to_wall,
-        collision_check, Wall
-    };
-    use drive_ai::racer::{GRID_HEIGHT, GRID_WIDTH, CAR_HEIGHT, CAR_WIDTH};
     use super::{Rays, RaysTrait, Ray, RayTrait, RAY_LENGTH};
 
     const NUM_RAYS: usize = 5; // Asserted values below are only for NUM_RAYS = 5
