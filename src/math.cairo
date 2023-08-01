@@ -37,6 +37,7 @@ fn vertices(position: Vec2, width: Fixed, height: Fixed, theta: Fixed) -> Span<V
 }
 
 // Cool algorithm - see pp. 4-10 at https://www.dcs.gla.ac.uk/~pat/52233/slides/Geometry1x1.pdf
+// TODO try to find cheaper algorithm
 // Determines if segments p1q1 and p2q2 intersect 
 fn intersects(p1: Vec2, q1: Vec2, p2: Vec2, q2: Vec2) -> bool {
     let orientation_a = orientation(p1, q1, p2);
@@ -151,7 +152,7 @@ mod tests {
     const FIFTY: u128 = 922337203685477580800;
     const SIXTY: u128 = 1106804644422573096960;
     const EIGHTY: u128 = 1475739525896764129280;
-    const HUNDRED: u128 = 1844674407370955161600;
+    const ONE_HUNDRED: u128 = 1844674407370955161600;
     const DEG_30_IN_RADS: u128 = 9658715196994321226;
     const DEG_90_IN_RADS: u128 = 28976077338029890953;
 

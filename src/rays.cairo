@@ -106,17 +106,16 @@ mod tests {
     const FOUR: u128 = 73786976294838206464;
     const TEN: u128 = 184467440737095516160;
     const FIFTY: u128 = 922337203685477580800;
-    const HUNDRED: u128 = 1844674407370955161600;
+    const ONE_HUNDRED: u128 = 1844674407370955161600;
     const TWO_HUNDRED: u128 = 3689348814741910323200;
     const THREE_HUNDRED: u128 = 5534023222112865484800;
-    const THREE_FIFTY: u128 = 6456360425798343065600;
     const DEG_25_IN_RADS: u128 = 8048910508974580935;
 
     #[test]
     #[available_gas(20000000)]
     fn test_raystrait_new() {
         // Vehicle 1
-        let vehicle_1 = vehicle_for_tests(TestVehicle::Vehicle1(()));
+        let vehicle_1 = vehicle_for_tests(TestVehicle::Vehicle_1(()));
         let ray_segments_1 = RaysTrait::new(vehicle_1.position, vehicle_1.steer).segments;
         assert(ray_segments_1.len() == NUM_RAYS, 'invalid ray_segments_1');
 
@@ -213,7 +212,7 @@ mod tests {
         );
 
         // Vehicle 2
-        let vehicle_2 = vehicle_for_tests(TestVehicle::Vehicle2(()));
+        let vehicle_2 = vehicle_for_tests(TestVehicle::Vehicle_2(()));
         let ray_segments_2 = RaysTrait::new(vehicle_2.position, vehicle_2.steer).segments;
         assert(ray_segments_2.len() == NUM_RAYS, 'invalid ray_segments_2');
 

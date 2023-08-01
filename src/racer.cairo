@@ -271,14 +271,16 @@ fn distances_to_wall(near_wall: Wall, mut rays: Span<Ray>) -> Array<Fixed> {
 fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) {
     let vertices = vehicle.vertices();
 
+    // TODO make narrower filters (near_wall and filter_positions) for collision checks
+
     /// Wall collision check
     match near_wall(vehicle) {
         Wall::None(()) => {},
-        Wall::Left(()) => { // not 100% sure of syntax here at end
+        Wall::Left(()) => {
             let cos_theta = trig::cos_fast(vehicle.steer);
             let sin_theta = trig::sin_fast(vehicle.steer);
 
-            // Check only left edge (vertex 1 to 2)
+            // Left edge (1) or vertex (1 & 2) must be involved in collision w/Left wall
             let closest_edge = Ray {
                 theta: vehicle.steer,
                 cos_theta: cos_theta,
@@ -286,16 +288,17 @@ fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) {
                 p: *vertices.at(1),
                 q: *vertices.at(2),
             };
+            // Left wall
             let p2 = Vec2 { x: FixedTrait::new(0, false), y: FixedTrait::new(0, false) };
             let q2 = Vec2 { x: FixedTrait::new(0, false), y: FixedTrait::new(GRID_HEIGHT, false) };
 
             assert(!closest_edge.intersects(p2, q2), 'hit left wall');
         },
-        Wall::Right(()) => { // not 100% sure of syntax here at end
+        Wall::Right(()) => {
             let cos_theta = trig::cos_fast(vehicle.steer);
             let sin_theta = trig::sin_fast(vehicle.steer);
 
-            // Check only right edge (vertex 3 to 0)
+            // Right edge (3) or vertices (3 & 0) must be involved in collision w/Right wall
             let closest_edge = Ray {
                 theta: vehicle.steer,
                 cos_theta: cos_theta,
@@ -303,7 +306,7 @@ fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) {
                 p: *vertices.at(3),
                 q: *vertices.at(0),
             };
-
+            // Right wall
             let p2 = Vec2 { x: FixedTrait::new(GRID_WIDTH, false), y: FixedTrait::new(0, false) };
             let q2 = Vec2 {
                 x: FixedTrait::new(GRID_WIDTH, false), y: FixedTrait::new(GRID_HEIGHT, false)
@@ -320,7 +323,7 @@ fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) {
     // For each vehicle edge...
     let mut vehicle_edge_idx: usize = 0;
     loop {
-        if (vehicle_edge_idx == 3) {
+        if (vehicle_edge_idx > 3) {
             break ();
         }
 
@@ -329,12 +332,14 @@ fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) {
             q1_idx = 0;
         }
         // Endpoints of vehicle edge
-        let p1 = vertices.at(vehicle_edge_idx);
-        let q1 = vertices.at(q1_idx);
+        let p1 = *vertices.at(vehicle_edge_idx);
+        let q1 = *vertices.at(q1_idx);
+
+        let mut filtered_enemies_this_edge = filtered_enemies.span();
 
         // ..., check for collision with each near enemy
         loop {
-            match filtered_enemies.pop_front() {
+            match filtered_enemies_this_edge.pop_front() {
                 Option::Some(position) => {
                     let mut enemy_edge_idx: usize = 0;
 
@@ -343,7 +348,7 @@ fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) {
                     // For each enemy edge
                     // TODO: Only check visible edges
                     loop {
-                        if enemy_edge_idx == 3 {
+                        if enemy_edge_idx > 3 {
                             break ();
                         }
 
@@ -353,10 +358,10 @@ fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) {
                         }
 
                         // Endpoints of enemy edge
-                        let p2 = vertices.at(enemy_edge_idx);
-                        let q2 = vertices.at(q2_idx);
+                        let p2 = *vertices.at(enemy_edge_idx);
+                        let q2 = *vertices.at(q2_idx);
 
-                        assert(!intersects(*p1, *q1, *p2, *q2), 'hit enemy');
+                        assert(!intersects(p1, q1, p2, q2), 'hit enemy');
 
                         enemy_edge_idx += 1;
                     }
@@ -472,7 +477,7 @@ mod tests {
     use drive_ai::vehicle::{Vehicle, VehicleTrait};
     use drive_ai::rays::{Rays, RaysTrait, Ray, RayTrait, RAY_LENGTH};
     use drive_ai::enemy::{Position, PositionTrait};
-    use drive_ai::math::assert_precise_u128;
+    use drive_ai::math::{intersects, assert_precise_u128};
     use super::{
         compute_sensors, filter_positions, closest_position, near_wall, distances_to_wall,
         collision_check, Wall
@@ -486,17 +491,23 @@ mod tests {
     const TWO: u128 = 36893488147419103232;
     const TEN: u128 = 184467440737095516160;
     const FIFTY: u128 = 922337203685477580800;
-    const HUNDRED: u128 = 1844674407370955161600;
+    const SEVENTY_FIVE: u128 = 1383505805528216371200;
+    const ONE_HUNDRED: u128 = 1844674407370955161600;
+    const ONE_HUNDRED_FIFTY: u128 = 2767011611056432742400;
     const TWO_HUNDRED: u128 = 3689348814741910323200;
+    const TWO_HUNDRED_FIFTY: u128 = 4611686018427387904000;
+    const TWO_HUNDRED_NINETY: u128 = 5349555781375769968640;
     const THREE_HUNDRED: u128 = 5534023222112865484800;
-    const THREE_FIFTY: u128 = 6456360425798343065600;
+    const THREE_HUNDRED_FIFTY: u128 = 6456360425798343065600;
     const DEG_25_IN_RADS: u128 = 8048910508974580935;
+    const DEG_40_IN_RADS: u128 = 12878256814359329497;
+    const DEG_70_IN_RADS: u128 = 22536949425128826620;
 
     #[test]
     #[available_gas(200000000)] // Made gas 10x
     fn test_compute_sensors() {
         // Vehicle 1
-        let vehicle_1 = vehicle_for_tests(TestVehicle::Vehicle1(()));
+        let vehicle_1 = vehicle_for_tests(TestVehicle::Vehicle_1(()));
         let mut enemies_1 = enemies_for_tests();
         let sensors_1 = compute_sensors(vehicle_1, enemies_1);
         assert(sensors_1.rays.data.len() == 5, 'invalid sensors_1');
@@ -523,7 +534,7 @@ mod tests {
         assert(*sensors_1.rays.data.at(4).mag == 0, 'invalid sensors_1 ray 4');
 
         // Vehicle 2
-        let vehicle_2 = vehicle_for_tests(TestVehicle::Vehicle2(()));
+        let vehicle_2 = vehicle_for_tests(TestVehicle::Vehicle_2(()));
         let mut enemies_2 = enemies_for_tests();
         let sensors_2 = compute_sensors(vehicle_2, enemies_2);
         assert(sensors_2.rays.data.len() == 5, 'invalid sensors_2');
@@ -555,8 +566,7 @@ mod tests {
         let mut enemies = enemies_for_tests();
 
         // Vehicle 1
-        let vehicle_1 = vehicle_for_tests(TestVehicle::Vehicle1(()));
-
+        let vehicle_1 = vehicle_for_tests(TestVehicle::Vehicle_1(()));
         let filtered_enemies_1 = filter_positions(vehicle_1, enemies.span());
 
         // Vehicle 1 is near 3 enemies (0, 1, & 2)
@@ -600,10 +610,10 @@ mod tests {
         );
 
         // Vehicle 2
-        let vehicle_2 = vehicle_for_tests(TestVehicle::Vehicle2(()));
+        let vehicle_2 = vehicle_for_tests(TestVehicle::Vehicle_2(()));
+        let filtered_enemies_2 = filter_positions(vehicle_2, enemies.span());
 
         // Vehicle 2 is near 2 enemies (2 & 3)
-        let filtered_enemies_2 = filter_positions(vehicle_2, enemies.span());
         assert(filtered_enemies_2.len() == 2_usize, 'invalid filtered_enemies_2');
         assert_precise_u128(
             *filtered_enemies_2.at(0).x,
@@ -637,7 +647,7 @@ mod tests {
         let mut enemies = enemies_for_tests();
 
         // Vehicle 1
-        let vehicle_1 = vehicle_for_tests(TestVehicle::Vehicle1(()));
+        let vehicle_1 = vehicle_for_tests(TestVehicle::Vehicle_1(()));
         let ray_segments_1 = RaysTrait::new(vehicle_1.position, vehicle_1.steer).segments;
         let filtered_enemies_1 = filter_positions(vehicle_1, enemies.span());
 
@@ -679,7 +689,7 @@ mod tests {
         assert(*enemy_sensors_1.at(4).mag == 0, 'invalid v1 closest pos ray 4');
 
         // Vehicle 2
-        let vehicle_2 = vehicle_for_tests(TestVehicle::Vehicle2(()));
+        let vehicle_2 = vehicle_for_tests(TestVehicle::Vehicle_2(()));
         let ray_segments_2 = RaysTrait::new(vehicle_2.position, vehicle_2.steer).segments;
         let filtered_enemies_2 = filter_positions(vehicle_2, enemies.span());
 
@@ -747,7 +757,7 @@ mod tests {
     #[available_gas(20000000)]
     fn test_distances_to_wall() {
         // Vehicle 1 to test Wall::Left(())
-        let vehicle_1 = vehicle_for_tests(TestVehicle::Vehicle1(()));
+        let vehicle_1 = vehicle_for_tests(TestVehicle::Vehicle_1(()));
         let near_wall_1 = near_wall(vehicle_1);
         assert(near_wall_1 == Wall::Left(()), 'invalid near_wall_1');
 
@@ -770,7 +780,7 @@ mod tests {
         assert(*distances_to_wall_1.at(4).mag == 0, 'invalid v1 dist to wall ray 4');
 
         // Vehicle 2 to test Wall::Right(())
-        let vehicle_2 = vehicle_for_tests(TestVehicle::Vehicle2(()));
+        let vehicle_2 = vehicle_for_tests(TestVehicle::Vehicle_2(()));
 
         let near_wall_2 = near_wall(vehicle_2);
         assert(near_wall_2 == Wall::Right(()), 'invalid near_wall_2');
@@ -802,7 +812,7 @@ mod tests {
         );
 
         // Vehicle 3 to test Wall::None(())
-        let vehicle_3 = vehicle_for_tests(TestVehicle::Vehicle3(()));
+        let vehicle_3 = vehicle_for_tests(TestVehicle::Vehicle_3(()));
 
         let near_wall_3 = near_wall(vehicle_3);
         assert(near_wall_3 == Wall::None(()), 'invalid near_wall_3');
@@ -813,40 +823,208 @@ mod tests {
         assert(distances_to_wall_3.len() == 0, 'invalid distances_to_wall_3');
     }
 
-    // TODO
     #[test]
     #[available_gas(20000000)]
-    fn test_collision_check() {}
+    fn test_collision_check_123() {
+        // Vehicle 1, no collision
+        let vehicle_1 = vehicle_for_tests(TestVehicle::Vehicle_1(()));
+        let mut enemies_1 = enemies_for_tests();
+        collision_check(vehicle_1, enemies_1);
+        // Vehicle 2, no collision
+        let vehicle_2 = vehicle_for_tests(TestVehicle::Vehicle_2(()));
+        let mut enemies_2 = enemies_for_tests();
+        collision_check(vehicle_2, enemies_2);
+        // Vehicle 3, no collision
+        let vehicle_3 = vehicle_for_tests(TestVehicle::Vehicle_3(()));
+        let mut enemies_3 = enemies_for_tests();
+        collision_check(vehicle_3, enemies_3);
+    }
 
-    // Helper functions for tests
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('hit left wall', ))]
+    fn test_collision_check_4() {
+        // Vehicle 4, collision w/Left wall
+        let vehicle = vehicle_for_tests(TestVehicle::Vehicle_4(()));
+        let mut enemies = enemies_for_tests();
+        collision_check(vehicle, enemies);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('hit right wall', ))]
+    fn test_collision_check_5() {
+        // Vehicle 5, collision w/Left wall
+        let vehicle = vehicle_for_tests(TestVehicle::Vehicle_5(()));
+        let mut enemies = enemies_for_tests();
+        collision_check(vehicle, enemies);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('hit enemy', ))]
+    fn test_collision_check_6() {
+        let vehicle = vehicle_for_tests(TestVehicle::Vehicle_6(()));
+        let mut enemies = enemies_for_tests();
+
+        // Vehicle_6 edge 1 collision w/enemy 1 edge 2
+        let p1 = vehicle.vertices().at(1);
+        let q1 = vehicle.vertices().at(2);
+        let p2 = enemies.at(1).vertices_scaled().at(2);
+        let q2 = enemies.at(1).vertices_scaled().at(3);
+        assert(intersects(*p1, *q1, *p2, *q2), 'Vehicle 6 invalid collision');
+
+        // Should panic
+        collision_check(vehicle, enemies);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('hit enemy', ))]
+    fn test_collision_check_7() {
+        let vehicle = vehicle_for_tests(TestVehicle::Vehicle_7(()));
+        let mut enemies = enemies_for_tests();
+
+        // Vehicle_7 edge 2 collision w/enemy 2 edge 0
+        let p1 = vehicle.vertices().at(2);
+        let q1 = vehicle.vertices().at(3);
+        let p2 = enemies.at(2).vertices_scaled().at(0);
+        let q2 = enemies.at(2).vertices_scaled().at(1);
+        assert(intersects(*p1, *q1, *p2, *q2), 'Vehicle 7 invalid collision');
+
+        // Should panic
+        collision_check(vehicle, enemies);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('hit enemy', ))]
+    fn test_collision_check_8() {
+        let vehicle = vehicle_for_tests(TestVehicle::Vehicle_8(()));
+        let mut enemies = enemies_for_tests();
+
+        // Vehicle_8 edge 3 collision w/enemy 3 edge 1
+        let p1 = vehicle.vertices().at(3);
+        let q1 = vehicle.vertices().at(0);
+        let p2 = enemies.at(3).vertices_scaled().at(1);
+        let q2 = enemies.at(3).vertices_scaled().at(2);
+        assert(intersects(*p1, *q1, *p2, *q2), 'Vehicle 8 invalid collision');
+
+        // Should panic
+        collision_check(vehicle, enemies);
+    }
+
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('hit enemy', ))]
+    fn test_collision_check_9() {
+        let vehicle = vehicle_for_tests(TestVehicle::Vehicle_9(()));
+        let mut enemies = enemies_for_tests();
+
+        // Vehicle_9 edge 0 collision w/enemy 0 edge 3 
+        let p1 = vehicle.vertices().at(0);
+        let q1 = vehicle.vertices().at(1);
+        let p2 = enemies.at(0).vertices_scaled().at(3);
+        let q2 = enemies.at(0).vertices_scaled().at(0);
+        assert(intersects(*p1, *q1, *p2, *q2), 'Vehicle 9 invalid collision');
+
+        // Should panic
+        collision_check(vehicle, enemies);
+    }
+
+    //
+    // Helpers for tests
+    //
     #[derive(Serde, Drop, Copy)]
     enum TestVehicle {
-        Vehicle1: (),
-        Vehicle2: (),
-        Vehicle3: (),
+        Vehicle_1: (),
+        Vehicle_2: (),
+        Vehicle_3: (),
+        Vehicle_4: (),
+        Vehicle_5: (),
+        Vehicle_6: (),
+        Vehicle_7: (),
+        Vehicle_8: (),
+        Vehicle_9: (),
     }
 
     fn vehicle_for_tests(test_vehicle: TestVehicle) -> Vehicle {
         let vehicle = match test_vehicle {
-            TestVehicle::Vehicle1(()) => Vehicle {
+            // Vehicle_1 near Left wall & some enemies, no collision
+            TestVehicle::Vehicle_1(()) => Vehicle {
                 position: Vec2Trait::new(
-                    FixedTrait::new(HUNDRED, false), FixedTrait::new(TWO_HUNDRED, false)
+                    FixedTrait::new(ONE_HUNDRED, false), FixedTrait::new(TWO_HUNDRED, false)
                 ),
                 steer: FixedTrait::new(0, false),
                 speed: FixedTrait::new(0, false)
             },
-            TestVehicle::Vehicle2(()) => Vehicle {
+            // Vehicle_2 near Right wall & some enemies, no collision
+            TestVehicle::Vehicle_2(()) => Vehicle {
                 position: Vec2Trait::new(
-                    FixedTrait::new(THREE_FIFTY, false), FixedTrait::new(TWO_HUNDRED, false)
+                    FixedTrait::new(THREE_HUNDRED_FIFTY, false), FixedTrait::new(TWO_HUNDRED, false)
                 ),
                 steer: FixedTrait::new(DEG_25_IN_RADS, false),
                 speed: FixedTrait::new(0, false)
             },
-            TestVehicle::Vehicle3(()) => Vehicle {
+            // Vehicle_3 near no wall, near some enemies, no collision
+            TestVehicle::Vehicle_3(()) => Vehicle {
                 position: Vec2Trait::new(
                     FixedTrait::new(TWO_HUNDRED, false), FixedTrait::new(TWO_HUNDRED, false)
                 ),
                 steer: FixedTrait::new(0, false),
+                speed: FixedTrait::new(0, false)
+            },
+            // Vehicle_4 collision w/Left wall
+            TestVehicle::Vehicle_4(()) => Vehicle {
+                position: Vec2Trait::new(
+                    FixedTrait::new(CAR_HEIGHT, false), FixedTrait::new(TWO_HUNDRED, false)
+                ),
+                steer: FixedTrait::new(DEG_70_IN_RADS, true),
+                speed: FixedTrait::new(0, false)
+            },
+            // Vehicle_5 collision w/Right wall
+            TestVehicle::Vehicle_5(()) => Vehicle {
+                position: Vec2Trait::new(
+                    FixedTrait::new(GRID_WIDTH - CAR_WIDTH, false),
+                    FixedTrait::new(TWO_HUNDRED, false)
+                ),
+                steer: FixedTrait::new(DEG_25_IN_RADS, false),
+                speed: FixedTrait::new(0, false)
+            },
+            // Vehicle_6 edge 1 collision w/enemy 1 edge 2
+            TestVehicle::Vehicle_6(()) => Vehicle {
+                position: Vec2Trait::new(
+                    FixedTrait::new(ONE_HUNDRED_FIFTY, false),
+                    FixedTrait::new(TWO_HUNDRED_FIFTY, false)
+                ),
+                steer: FixedTrait::new(DEG_70_IN_RADS, false),
+                speed: FixedTrait::new(0, false)
+            },
+            // Vehicle_7 edge 2 collision w/enemy 2 edge 0
+            TestVehicle::Vehicle_7(()) => Vehicle {
+                position: Vec2Trait::new(
+                    FixedTrait::new(TWO_HUNDRED_NINETY, false),
+                    FixedTrait::new(THREE_HUNDRED_FIFTY, false)
+                ),
+                steer: FixedTrait::new(DEG_70_IN_RADS, false),
+                speed: FixedTrait::new(0, false)
+            },
+            // Vehicle_8 edge 3 collision w/enemy 3 edge 1
+            TestVehicle::Vehicle_8(()) => Vehicle {
+                position: Vec2Trait::new(
+                    FixedTrait::new(THREE_HUNDRED_FIFTY, false),
+                    FixedTrait::new(TWO_HUNDRED_FIFTY, false)
+                ),
+                steer: FixedTrait::new(DEG_40_IN_RADS, true),
+                speed: FixedTrait::new(0, false)
+            },
+            // Vehicle_9 edge 0 collision w/enemy 0 edge 3 
+            TestVehicle::Vehicle_9(()) => Vehicle {
+                position: Vec2Trait::new(
+                    FixedTrait::new(SEVENTY_FIVE, false), FixedTrait::new(THREE_HUNDRED, false)
+                ),
+                steer: FixedTrait::new(DEG_40_IN_RADS, true),
                 speed: FixedTrait::new(0, false)
             },
         };

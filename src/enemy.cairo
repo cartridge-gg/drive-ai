@@ -467,7 +467,7 @@ mod tests {
     use drive_ai::racer::{CAR_HEIGHT as CAR_HEIGHT_SCALED, CAR_WIDTH as CAR_WIDTH_SCALED};
     use super::{Position, PositionTrait};
 
-    const HUNDRED: u128 = 1844674407370955161600;
+    const ONE_HUNDRED: u128 = 1844674407370955161600;
 
     #[test]
     #[available_gas(2000000)]
@@ -477,52 +477,52 @@ mod tests {
 
         assert_precise(
             *vertices.at(0).x,
-            (HUNDRED + CAR_WIDTH_SCALED).into(),
+            (ONE_HUNDRED + CAR_WIDTH_SCALED).into(),
             'invalid vertex_0',
             Option::None(())
         );
         assert_precise(
             *vertices.at(0).y,
-            (HUNDRED + CAR_HEIGHT_SCALED).into(),
+            (ONE_HUNDRED + CAR_HEIGHT_SCALED).into(),
             'invalid vertex_0',
             Option::None(())
         );
 
         assert_precise(
             *vertices.at(1).x,
-            (HUNDRED - CAR_WIDTH_SCALED).into(),
+            (ONE_HUNDRED - CAR_WIDTH_SCALED).into(),
             'invalid vertex_1',
             Option::None(())
         );
         assert_precise(
             *vertices.at(1).y,
-            (HUNDRED + CAR_HEIGHT_SCALED).into(),
+            (ONE_HUNDRED + CAR_HEIGHT_SCALED).into(),
             'invalid vertex_1',
             Option::None(())
         );
 
         assert_precise(
             *vertices.at(2).x,
-            (HUNDRED - CAR_WIDTH_SCALED).into(),
+            (ONE_HUNDRED - CAR_WIDTH_SCALED).into(),
             'invalid vertex_x2',
             Option::None(())
         );
         assert_precise(
             *vertices.at(2).y,
-            (HUNDRED - CAR_HEIGHT_SCALED).into(),
+            (ONE_HUNDRED - CAR_HEIGHT_SCALED).into(),
             'invalid vertex_y2',
             Option::None(())
         );
 
         assert_precise(
             *vertices.at(3).x,
-            (HUNDRED + CAR_WIDTH_SCALED).into(),
+            (ONE_HUNDRED + CAR_WIDTH_SCALED).into(),
             'invalid vertex_3',
             Option::None(())
         );
         assert_precise(
             *vertices.at(3).y,
-            (HUNDRED - CAR_HEIGHT_SCALED).into(),
+            (ONE_HUNDRED - CAR_HEIGHT_SCALED).into(),
             'invalid vertex_3',
             Option::None(())
         );
@@ -531,57 +531,57 @@ mod tests {
     #[test]
     #[available_gas(2000000)]
     fn test_vertices_scaled() {
-        let position = Position { x: HUNDRED, y: HUNDRED };
+        let position = Position { x: ONE_HUNDRED, y: ONE_HUNDRED };
         let vertices = position.vertices_scaled();
 
         assert_precise(
             *vertices.at(0).x,
-            (HUNDRED + CAR_WIDTH_SCALED).into(),
+            (ONE_HUNDRED + CAR_WIDTH_SCALED).into(),
             'invalid vertex_0',
             Option::None(())
         );
         assert_precise(
             *vertices.at(0).y,
-            (HUNDRED + CAR_HEIGHT_SCALED).into(),
+            (ONE_HUNDRED + CAR_HEIGHT_SCALED).into(),
             'invalid vertex_0',
             Option::None(())
         );
 
         assert_precise(
             *vertices.at(1).x,
-            (HUNDRED - CAR_WIDTH_SCALED).into(),
+            (ONE_HUNDRED - CAR_WIDTH_SCALED).into(),
             'invalid vertex_1',
             Option::None(())
         );
         assert_precise(
             *vertices.at(1).y,
-            (HUNDRED + CAR_HEIGHT_SCALED).into(),
+            (ONE_HUNDRED + CAR_HEIGHT_SCALED).into(),
             'invalid vertex_1',
             Option::None(())
         );
 
         assert_precise(
             *vertices.at(2).x,
-            (HUNDRED - CAR_WIDTH_SCALED).into(),
+            (ONE_HUNDRED - CAR_WIDTH_SCALED).into(),
             'invalid vertex_x2',
             Option::None(())
         );
         assert_precise(
             *vertices.at(2).y,
-            (HUNDRED - CAR_HEIGHT_SCALED).into(),
+            (ONE_HUNDRED - CAR_HEIGHT_SCALED).into(),
             'invalid vertex_y2',
             Option::None(())
         );
 
         assert_precise(
             *vertices.at(3).x,
-            (HUNDRED + CAR_WIDTH_SCALED).into(),
+            (ONE_HUNDRED + CAR_WIDTH_SCALED).into(),
             'invalid vertex_3',
             Option::None(())
         );
         assert_precise(
             *vertices.at(3).y,
-            (HUNDRED - CAR_HEIGHT_SCALED).into(),
+            (ONE_HUNDRED - CAR_HEIGHT_SCALED).into(),
             'invalid vertex_3',
             Option::None(())
         );
