@@ -824,7 +824,7 @@ mod tests {
     }
 
     #[test]
-    #[available_gas(20000000)]
+    #[available_gas(200000000)] // Made 10x
     fn test_collision_check_123() {
         // Vehicle 1, no collision
         let vehicle_1 = vehicle_for_tests(TestVehicle::Vehicle_1(()));

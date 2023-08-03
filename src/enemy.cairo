@@ -300,7 +300,7 @@ mod move_enemies {
         let new_y = if y <= velocity + height {
             GRID_HEIGHT + y + height - velocity
         } else {
-            y - (velocity + height)
+            y - velocity
         };
 
         Position {
