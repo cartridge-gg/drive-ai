@@ -37,6 +37,7 @@ fn vertices(position: Vec2, width: Fixed, height: Fixed, theta: Fixed) -> Span<V
 }
 
 // Cool algorithm - see pp. 4-10 at https://www.dcs.gla.ac.uk/~pat/52233/slides/Geometry1x1.pdf
+// TODO try to find cheaper algorithm
 // Determines if segments p1q1 and p2q2 intersect 
 fn intersects(p1: Vec2, q1: Vec2, p2: Vec2, q2: Vec2) -> bool {
     let orientation_a = orientation(p1, q1, p2);
@@ -89,18 +90,44 @@ fn orientation(a: Vec2, b: Vec2, c: Vec2) -> u8 {
 
 // Finds distance from p1 to intersection of segments p1q1 and p2q2
 fn distance(p1: Vec2, p2: Vec2, q2: Vec2, cos_ray: Fixed, sin_ray: Fixed) -> Fixed {
-    // All enemy edges are either vertical or horizontal
+    // All enemy edges are either vertical or horizontal; all walls are vertical
     if p2.y == q2.y { // Enemy edge is horizontal
         if p2.y == p1.y { // Ray is colinear with enemy edge
             return min((p2.x - p1.x).abs(), (q2.x - p1.x).abs());
         } else {
             return ((p2.y - p1.y) / cos_ray).abs();
         }
-    } else { // Enemy edge is vertical
+    } else { // Enemy edge or wall is vertical
         if p2.x == p1.x { // Ray is colinear with enemy edge
             return min((p2.y - p1.y).abs(), (q2.y - p1.y).abs());
         } else {
             return ((p2.x - p1.x) / sin_ray).abs();
+        }
+    }
+}
+
+use debug::PrintTrait;
+const DEFAULT_PRECISION: u128 = 1844674407370; // 1e-7
+// Similar to cubit's assert_precise which works for Fixed type only, but here for u128
+// To use `DEFAULT_PRECISION`, final arg is: `Option::None(())`.
+// To use `custom_precision` of 184467440737_u128: `Option::Some(184467440737_u128)`.
+fn assert_precise_u128(result: u128, expected: u128, msg: felt252, custom_precision: Option<u128>) {
+    let precision = match custom_precision {
+        Option::Some(val) => val,
+        Option::None(_) => DEFAULT_PRECISION,
+    };
+
+    if result < expected {
+        let diff = expected - result;
+        if (diff > precision) {
+            result.print();
+            assert(diff <= precision, msg);
+        }
+    } else {
+        let diff = result - expected;
+        if (diff > precision) {
+            result.print();
+            assert(diff <= precision, msg);
         }
     }
 }
@@ -125,7 +152,7 @@ mod tests {
     const FIFTY: u128 = 922337203685477580800;
     const SIXTY: u128 = 1106804644422573096960;
     const EIGHTY: u128 = 1475739525896764129280;
-    const HUNDRED: u128 = 1844674407370955161600;
+    const ONE_HUNDRED: u128 = 1844674407370955161600;
     const DEG_30_IN_RADS: u128 = 9658715196994321226;
     const DEG_90_IN_RADS: u128 = 28976077338029890953;
 
@@ -162,17 +189,17 @@ mod tests {
 
         let mut vertices = vertices(position, width, height, theta);
 
-        assert_precise(*(vertices.at(0).x), TWENTY.into(), 'invalid vertex_0', Option::None(()));
-        assert_precise(*(vertices.at(0).y), FORTY.into(), 'invalid vertex_0', Option::None(()));
+        assert_precise(*vertices.at(0).x, TWENTY.into(), 'invalid vertex_0', Option::None(()));
+        assert_precise(*vertices.at(0).y, FORTY.into(), 'invalid vertex_0', Option::None(()));
 
-        assert_precise(*(vertices.at(1).x), 0, 'invalid vertex_1', Option::None(()));
-        assert_precise(*(vertices.at(1).y), FORTY.into(), 'invalid vertex_1', Option::None(()));
+        assert_precise(*vertices.at(1).x, 0, 'invalid vertex_1', Option::None(()));
+        assert_precise(*vertices.at(1).y, FORTY.into(), 'invalid vertex_1', Option::None(()));
 
-        assert_precise(*(vertices.at(2).x), 0, 'invalid vertex_2', Option::None(()));
-        assert_precise(*(vertices.at(2).y), 0, 'invalid vertex_2', Option::None(()));
+        assert_precise(*vertices.at(2).x, 0, 'invalid vertex_2', Option::None(()));
+        assert_precise(*vertices.at(2).y, 0, 'invalid vertex_2', Option::None(()));
 
-        assert_precise(*(vertices.at(3).x), TWENTY.into(), 'invalid vertex_3', Option::None(()));
-        assert_precise(*(vertices.at(3).y), 0, 'invalid vertex_3', Option::None(()));
+        assert_precise(*vertices.at(3).x, TWENTY.into(), 'invalid vertex_3', Option::None(()));
+        assert_precise(*vertices.at(3).y, 0, 'invalid vertex_3', Option::None(()));
 
         let position = Vec2Trait::new(FixedTrait::new(TEN, false), FixedTrait::new(TWENTY, false));
         let width = FixedTrait::new(TEN, false);
@@ -183,37 +210,34 @@ mod tests {
 
         // x: ~8.66025403784439, y: ~42.32050807568880
         assert_precise(
-            *(vertices.at(0).x), 159753090305067335160, 'invalid rotated vertex_0', Option::None(())
+            *vertices.at(0).x, 159753090305067335160, 'invalid rotated vertex_0', Option::None(())
         );
         assert_precise(
-            *(vertices.at(0).y), 780673828410437532220, 'invalid rotated vertex_0', Option::None(())
+            *vertices.at(0).y, 780673828410437532220, 'invalid rotated vertex_0', Option::None(())
         );
 
         // x: ~-8.66025403784439, y: ~32.32050807568880
         assert_precise(
-            *(vertices.at(1).x),
-            -159752327071118592360,
-            'invalid rotated vertex_1',
-            Option::None(())
+            *vertices.at(1).x, -159752327071118592360, 'invalid rotated vertex_1', Option::None(())
         );
         assert_precise(
-            *(vertices.at(1).y), 596206769290316387460, 'invalid rotated vertex_1', Option::None(())
+            *vertices.at(1).y, 596206769290316387460, 'invalid rotated vertex_1', Option::None(())
         );
 
         // x: ~11.33974596215560, y: ~-2.32050807568877
         assert_precise(
-            *(vertices.at(2).x), 209181791169123697160, 'invalid rotated vertex_2', Option::None(())
+            *vertices.at(2).x, 209181791169123697160, 'invalid rotated vertex_2', Option::None(())
         );
         assert_precise(
-            *(vertices.at(2).y), -42804065462055467580, 'invalid rotated vertex_2', Option::None(())
+            *vertices.at(2).y, -42804065462055467580, 'invalid rotated vertex_2', Option::None(())
         );
 
         // x: ~28.66025403784440, y: ~7.67949192431123
         assert_precise(
-            *(vertices.at(3).x), 528687208545309624680, 'invalid rotated vertex_3', Option::None(())
+            *vertices.at(3).x, 528687208545309624680, 'invalid rotated vertex_3', Option::None(())
         );
         assert_precise(
-            *(vertices.at(3).y), 141662993658065677180, 'invalid rotated vertex_3', Option::None(())
+            *vertices.at(3).y, 141662993658065677180, 'invalid rotated vertex_3', Option::None(())
         );
     }
 
@@ -226,7 +250,7 @@ mod tests {
         let mut p2 = Vec2Trait::new(FixedTrait::new(TEN, false), FixedTrait::new(FORTY, false));
         let mut q2 = Vec2Trait::new(FixedTrait::new(THIRTY, false), FixedTrait::new(0, false));
         let mut intersect = intersects(p1, q1, p2, q2);
-        assert(intersect == true, 'invalid intersection');
+        assert(intersect, 'invalid intersection');
 
         // Switch only p1,q1
         p1 = Vec2Trait::new(FixedTrait::new(0, false), FixedTrait::new(TEN, false));
@@ -234,7 +258,7 @@ mod tests {
         p2 = Vec2Trait::new(FixedTrait::new(TEN, false), FixedTrait::new(FORTY, false));
         q2 = Vec2Trait::new(FixedTrait::new(THIRTY, false), FixedTrait::new(0, false));
         intersect = intersects(p1, q1, p2, q2);
-        assert(intersect == true, 'invalid intersection');
+        assert(intersect, 'invalid intersection');
 
         // Switch only p2,q2
         p1 = Vec2Trait::new(FixedTrait::new(FORTY, false), FixedTrait::new(THIRTY, false));
@@ -242,7 +266,7 @@ mod tests {
         p2 = Vec2Trait::new(FixedTrait::new(THIRTY, false), FixedTrait::new(0, false));
         q2 = Vec2Trait::new(FixedTrait::new(TEN, false), FixedTrait::new(FORTY, false));
         intersect = intersects(p1, q1, p2, q2);
-        assert(intersect == true, 'invalid intersection');
+        assert(intersect, 'invalid intersection');
 
         // Switch both p1,q1 and p2,q2
         p1 = Vec2Trait::new(FixedTrait::new(0, false), FixedTrait::new(TEN, false));
@@ -250,19 +274,19 @@ mod tests {
         p2 = Vec2Trait::new(FixedTrait::new(THIRTY, false), FixedTrait::new(0, false));
         q2 = Vec2Trait::new(FixedTrait::new(TEN, false), FixedTrait::new(FORTY, false));
         intersect = intersects(p1, q1, p2, q2);
-        assert(intersect == true, 'invalid intersection');
+        assert(intersect, 'invalid intersection');
 
         // Now shorter line 2 so no intersection
         q2 = Vec2Trait::new(FixedTrait::new(TEN, false), FixedTrait::new(TEN, false));
         intersect = intersects(p1, q1, p2, q2);
-        assert(intersect == false, 'invalid non-intersection');
+        assert(!intersect, 'invalid non-intersection');
 
         // Colinear segments
         q1 = Vec2Trait::new(FixedTrait::new(THIRTY, false), FixedTrait::new(TEN, false));
         p2 = Vec2Trait::new(FixedTrait::new(TWENTY, false), FixedTrait::new(TEN, false));
         q2 = Vec2Trait::new(FixedTrait::new(FORTY, false), FixedTrait::new(TEN, false));
         intersect = intersects(p1, q1, p2, q2);
-        assert(intersect == true, 'invalid colinear intersection');
+        assert(intersect, 'invalid colinear intersection');
     }
 
     #[test]

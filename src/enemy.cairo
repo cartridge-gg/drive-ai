@@ -26,7 +26,8 @@ struct Position {
 
 trait PositionTrait {
     // Returns the vertices of the enemy at given position
-    fn vertices(self: @Position) -> Span<Vec2>;
+    fn vertices(self: @Position) -> Span<Vec2>; // Position has unscaled members
+    fn vertices_scaled(self: @Position) -> Span<Vec2>; // Position has scaled members
 }
 
 impl PostionImpl of PositionTrait {
@@ -56,6 +57,34 @@ impl PostionImpl of PositionTrait {
 
         vertices.append(Vec2 { x: x1, y: y1 });
         vertices.append(Vec2 { x: FixedTrait::new_unscaled(*self.x + CAR_WIDTH, false), y: y1 });
+        vertices.span()
+    }
+
+    fn vertices_scaled(self: @Position) -> Span<Vec2> {
+        let mut vertices = ArrayTrait::new();
+        vertices
+            .append(
+                Vec2 {
+                    x: FixedTrait::new(*self.x + CAR_WIDTH_SCALED, false),
+                    y: FixedTrait::new(*self.y + CAR_HEIGHT_SCALED, false)
+                }
+            );
+
+        let x1 = if *self.x < CAR_WIDTH_SCALED {
+            FixedTrait::new(0, false)
+        } else {
+            FixedTrait::new(*self.x - CAR_WIDTH_SCALED, false)
+        };
+
+        let y1 = if *self.y < CAR_HEIGHT_SCALED {
+            FixedTrait::new(0, false)
+        } else {
+            FixedTrait::new(*self.y - CAR_HEIGHT_SCALED, false)
+        };
+
+        vertices.append(Vec2 { x: x1, y: FixedTrait::new(*self.y + CAR_HEIGHT_SCALED, false) });
+        vertices.append(Vec2 { x: x1, y: y1 });
+        vertices.append(Vec2 { x: FixedTrait::new(*self.x + CAR_WIDTH_SCALED, false), y: y1 });
         vertices.span()
     }
 }
@@ -271,7 +300,7 @@ mod move_enemies {
         let new_y = if y <= velocity + height {
             GRID_HEIGHT + y + height - velocity
         } else {
-            y - (velocity + height)
+            y - velocity
         };
 
         Position {
@@ -438,7 +467,7 @@ mod tests {
     use drive_ai::racer::{CAR_HEIGHT as CAR_HEIGHT_SCALED, CAR_WIDTH as CAR_WIDTH_SCALED};
     use super::{Position, PositionTrait};
 
-    const HUNDRED: u128 = 1844674407370955161600;
+    const ONE_HUNDRED: u128 = 1844674407370955161600;
 
     #[test]
     #[available_gas(2000000)]
@@ -447,53 +476,112 @@ mod tests {
         let vertices = position.vertices();
 
         assert_precise(
-            *(vertices.at(0).x),
-            (HUNDRED + CAR_WIDTH_SCALED).into(),
+            *vertices.at(0).x,
+            (ONE_HUNDRED + CAR_WIDTH_SCALED).into(),
             'invalid vertex_0',
             Option::None(())
         );
         assert_precise(
-            *(vertices.at(0).y),
-            (HUNDRED + CAR_HEIGHT_SCALED).into(),
+            *vertices.at(0).y,
+            (ONE_HUNDRED + CAR_HEIGHT_SCALED).into(),
             'invalid vertex_0',
             Option::None(())
         );
 
         assert_precise(
-            *(vertices.at(1).x),
-            (HUNDRED - CAR_WIDTH_SCALED).into(),
+            *vertices.at(1).x,
+            (ONE_HUNDRED - CAR_WIDTH_SCALED).into(),
             'invalid vertex_1',
             Option::None(())
         );
         assert_precise(
-            *(vertices.at(1).y),
-            (HUNDRED + CAR_HEIGHT_SCALED).into(),
+            *vertices.at(1).y,
+            (ONE_HUNDRED + CAR_HEIGHT_SCALED).into(),
             'invalid vertex_1',
             Option::None(())
         );
 
         assert_precise(
-            *(vertices.at(2).x),
-            (HUNDRED - CAR_WIDTH_SCALED).into(),
+            *vertices.at(2).x,
+            (ONE_HUNDRED - CAR_WIDTH_SCALED).into(),
             'invalid vertex_x2',
             Option::None(())
         );
         assert_precise(
-            *(vertices.at(2).y),
-            (HUNDRED - CAR_HEIGHT_SCALED).into(),
+            *vertices.at(2).y,
+            (ONE_HUNDRED - CAR_HEIGHT_SCALED).into(),
             'invalid vertex_y2',
             Option::None(())
         );
 
         assert_precise(
-            *(vertices.at(3).x),
-            (HUNDRED + CAR_WIDTH_SCALED).into(),
+            *vertices.at(3).x,
+            (ONE_HUNDRED + CAR_WIDTH_SCALED).into(),
             'invalid vertex_3',
             Option::None(())
         );
         assert_precise(
-            *(vertices.at(3).y),
-            (HUNDRED - CAR_HEIGHT_SCALED).into(),
+            *vertices.at(3).y,
+            (ONE_HUNDRED - CAR_HEIGHT_SCALED).into(),
+            'invalid vertex_3',
+            Option::None(())
+        );
+    }
+
+    #[test]
+    #[available_gas(2000000)]
+    fn test_vertices_scaled() {
+        let position = Position { x: ONE_HUNDRED, y: ONE_HUNDRED };
+        let vertices = position.vertices_scaled();
+
+        assert_precise(
+            *vertices.at(0).x,
+            (ONE_HUNDRED + CAR_WIDTH_SCALED).into(),
+            'invalid vertex_0',
+            Option::None(())
+        );
+        assert_precise(
+            *vertices.at(0).y,
+            (ONE_HUNDRED + CAR_HEIGHT_SCALED).into(),
+            'invalid vertex_0',
+            Option::None(())
+        );
+
+        assert_precise(
+            *vertices.at(1).x,
+            (ONE_HUNDRED - CAR_WIDTH_SCALED).into(),
+            'invalid vertex_1',
+            Option::None(())
+        );
+        assert_precise(
+            *vertices.at(1).y,
+            (ONE_HUNDRED + CAR_HEIGHT_SCALED).into(),
+            'invalid vertex_1',
+            Option::None(())
+        );
+
+        assert_precise(
+            *vertices.at(2).x,
+            (ONE_HUNDRED - CAR_WIDTH_SCALED).into(),
+            'invalid vertex_x2',
+            Option::None(())
+        );
+        assert_precise(
+            *vertices.at(2).y,
+            (ONE_HUNDRED - CAR_HEIGHT_SCALED).into(),
+            'invalid vertex_y2',
+            Option::None(())
+        );
+
+        assert_precise(
+            *vertices.at(3).x,
+            (ONE_HUNDRED + CAR_WIDTH_SCALED).into(),
+            'invalid vertex_3',
+            Option::None(())
+        );
+        assert_precise(
+            *vertices.at(3).y,
+            (ONE_HUNDRED - CAR_HEIGHT_SCALED).into(),
             'invalid vertex_3',
             Option::None(())
         );
